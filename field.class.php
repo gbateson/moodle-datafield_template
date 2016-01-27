@@ -51,53 +51,14 @@ class data_field_template extends data_field_base {
     const OP_END_WITH    = 10;
 
     /**
-     * TRUE if the current user can view this field; otherwise FALSE
+     * the id of the data_record currently being viewed
      */
-    var $is_viewable = false;
-
     var $recordid = 0;
-    var $dateformat = '';
 
     /**
-     * constructor
-     *
-     * @param object $field record from "data_fields" table
-     * @param object $data record from "data" table
-     * @param object $cm record from "course_modules" table
+     * the date format used to format date fields
      */
-    function __construct($field=0, $data=0, $cm=0) {
-        global $CFG, $DB;
-
-        // set up this field in the normal way
-        parent::__construct($field, $data, $cm);
-
-        $fieldid  = (empty($this->field->param1) ? 0  : $this->field->param1);
-        $operator = (empty($this->field->param2) ? 0  : $this->field->param2);
-        $value    = (empty($this->field->param3) ? '' : $this->field->param3);
-        $recordid = optional_param('rid', 0, PARAM_INT);
-
-        // set $is_viewable flag
-        if ($fieldid && $recordid) {
-            $params = array('fieldid' => $fieldid, 'recordid' => $recordid);
-            $content = $DB->get_field('data_content', 'content', $params);
-            $content = trim($content);
-            switch ($operator) {
-                case self::OP_EMPTY:       $this->is_viewable = empty($content); break;
-                case self::OP_NOT_EMPTY:   $this->is_viewable = (! empty($content)); break;
-                case self::OP_EQUAL:       $this->is_viewable = ($content == $value); break;
-                case self::OP_NOT_EQUAL:   $this->is_viewable = ($content != $value); break;
-                case self::OP_MORE_THAN:   $this->is_viewable = ($content > $value); break;
-                case self::OP_LESS_THAN:   $this->is_viewable = ($content < $value); break;
-                case self::OP_CONTAIN:     $this->is_viewable = strpos($value, $content)!==false; break;
-                case self::OP_NOT_CONTAIN: $this->is_viewable = strpos($value, $content)===false; break;
-                case self::OP_START_WITH:  $this->is_viewable = ($value == substr(0, strlen($value))); break;
-                case self::OP_END_WITH:    $this->is_viewable = ($value == substr(- strlen($value))); break;
-            }
-        }
-
-        $this->recordid = optional_param('rid', 0, PARAM_INT);
-        $this->dateformat = get_string('strftimedate', 'langconfig');
-    }
+    var $dateformat = 0;
 
     /**
      * This field just sets up a default field object
@@ -187,7 +148,32 @@ class data_field_template extends data_field_base {
      */
     function display_browse_field($recordid, $template) {
         global $DB;
-        if (! $this->is_viewable) {
+
+        $fieldid  = (empty($this->field->param1) ? 0  : $this->field->param1);
+        $operator = (empty($this->field->param2) ? 0  : $this->field->param2);
+        $value    = (empty($this->field->param3) ? '' : $this->field->param3);
+
+        // set $is_viewable flag
+        if ($fieldid && $recordid) {
+            $params = array('fieldid' => $fieldid, 'recordid' => $recordid);
+            $content = $DB->get_field('data_content', 'content', $params);
+            $content = trim($content);
+            switch ($operator) {
+                case self::OP_EMPTY:       $is_viewable = empty($content); break;
+                case self::OP_NOT_EMPTY:   $is_viewable = (! empty($content)); break;
+                case self::OP_EQUAL:       $is_viewable = ($content == $value); break;
+                case self::OP_NOT_EQUAL:   $is_viewable = ($content != $value); break;
+                case self::OP_MORE_THAN:   $is_viewable = ($content > $value); break;
+                case self::OP_LESS_THAN:   $is_viewable = ($content < $value); break;
+                case self::OP_CONTAIN:     $is_viewable = strpos($value, $content)!==false; break;
+                case self::OP_NOT_CONTAIN: $is_viewable = strpos($value, $content)===false; break;
+                case self::OP_START_WITH:  $is_viewable = ($value == substr(0, strlen($value))); break;
+                case self::OP_END_WITH:    $is_viewable = ($value == substr(- strlen($value))); break;
+                default:                   $is_viewable = false;
+            }
+        }
+
+        if (! $is_viewable) {
             return '';
         }
         if (! $itemid = $this->field->id) {
@@ -203,6 +189,12 @@ class data_field_template extends data_field_base {
         $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $this->get_fileoptions());
         $content = format_text($content, $format, (object)array('filter' => false, 'para' => false));
 
+        // these values may be needed by the replace_fieldname() method
+        $this->userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
+        $this->user = $DB->get_record('user', array('id' => $this->userid));
+        $this->dateformat = get_string('strftimedate', 'langconfig');
+        $this->recordid = $recordid;
+
         $search = '/\[\[([^\]]+)]\]/';
         $callback = array($this, 'replace_fieldname');
         $content = preg_replace_callback($search, $callback, $content);
@@ -213,16 +205,43 @@ class data_field_template extends data_field_base {
     protected function replace_fieldname($matches) {
         global $DB, $USER;
 
+        if (! $this->recordid) {
+            return '';
+        }
+
         if (! $name = $matches[1]) {
             return '';
         }
 
-        if (isset($USER->$name)) {
-            return $USER->$name;
-        }
+        if (isset($this->user->$name)) {
 
-        if (! $this->recordid) {
-            return '';
+            // these fields are accessible
+            $names = array(
+                'firstname', 'lastname', 'email',
+                'icq', 'skype', 'yahoo', 'aim', 'msn',
+                'phone1', 'phone2', 'institution', 'department',
+                'address', 'city', 'country', 'picture', 'imagealt',
+                'url', 'description', 'descriptionformat',
+                'lastnamephonetic', 'firstnamephonetic',
+                'middlename', 'alternatename'
+            );
+
+            // the following user fields are not accessible
+            // 'id', 'auth', 'confirmed', 'policyagreed',
+            // 'deleted', 'suspended', 'mnethostid',
+            // 'username', 'password', 'idnumber',
+            // 'emailstop', 'lang', 'theme', 'timezone',
+            // 'firstaccess', 'lastaccess', 'lastlogin',
+            // 'currentlogin', 'lastip', 'secret',
+            // 'mailformat', 'maildigest', 'maildisplay',
+            // 'autosubscribe', 'trackforums', 'timecreated',
+            // 'timemodified', 'trustbitmask', 'calendartype',
+
+            if (in_array($name, $names)) {
+                return $this->user->$name;
+            } else {
+                return str_repeat('*', 12);
+            }
         }
 
         $params = array('dataid' => $this->data->id, 'name' => $name);
