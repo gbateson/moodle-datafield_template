@@ -1,0 +1,81 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * HTML snippet for insertion into the form to edit an instance of this field
+ *
+ * @package    data
+ * @subpackage datafield_admin
+ * @copyright  2015 Gordon Bateson (gordon.bateson@gmail.com)
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since      Moodle 2.3
+ */
+ ?>
+<table width="100%" cellpadding="5" class="datafield_template"><?php
+
+    $name  = 'name';
+    $value = $this->field->$name;
+    $label = get_string('field'.$name, 'data');
+    $text  = $this->format_edit_textfield($name, $value, 'field'.$name);
+    echo $this->format_table_row($name, $label, $text);
+
+    $name  = 'description';
+    $value = $this->field->$name;
+    $label = get_string('field'.$name, 'data');
+    $text  = $this->format_edit_textfield($name, $value, 'field'.$name);
+    echo $this->format_table_row($name, $label, $text);
+
+    $conditions = array();
+
+    // fieldid
+    $name  = 'param1';
+    $options = $this->get_fieldids();
+    $default = (empty($this->field->$name) ? 0  : $this->field->$name);
+    $conditions[] = $this->format_edit_selectfield($name, $options, $default);
+
+    // operator
+    $name  = 'param2';
+    $options = $this->get_operators();
+    $default = (empty($this->field->$name) ? 0  : $this->field->$name);
+    $conditions[] = $this->format_edit_selectfield($name, $options, $default);
+
+    // value
+    $name  = 'param3';
+    $default = (empty($this->field->$name) ? '' : $this->field->$name);
+    $conditions[] = $this->format_edit_textfield($name, $default, 'field'.$name);
+
+    // displayconditions
+    $name = 'displaycondtions';
+    $label = get_string($name, 'datafield_template');
+    echo $this->format_table_row($name, $label, implode(' ', $conditions));
+
+    // content
+    $name = 'param4';
+    $content = (empty($this->field->$name) ? '' : $this->field->$name);
+
+    // format
+    $name  = 'param5';
+    $format = (empty($this->field->$name) ? FORMAT_HTML : $this->field->$name);
+
+    $name = 'content';
+    $label = get_string($name);
+    $text = $this->format_edit_editor($label, $content, $format, 5, 60);
+    echo $this->format_table_row($name, $label, $text);
+
+?></table>
+<?php
+    echo $this->require_edit_js('menuparam1', 'menuparam2', 'id_param3');
+?>
