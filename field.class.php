@@ -55,6 +55,9 @@ class data_field_template extends data_field_base {
      */
     var $is_viewable = false;
 
+    var $recordid = 0;
+    var $dateformat = '';
+
     /**
      * constructor
      *
@@ -68,9 +71,9 @@ class data_field_template extends data_field_base {
         // set up this field in the normal way
         parent::__construct($field, $data, $cm);
 
-        $fieldid  = (empty($this->param1) ? 0  : $this->param1);
-        $operator = (empty($this->param2) ? 0  : $this->param2);
-        $value    = (empty($this->param3) ? '' : $this->param3);
+        $fieldid  = (empty($this->field->param1) ? 0  : $this->field->param1);
+        $operator = (empty($this->field->param2) ? 0  : $this->field->param2);
+        $value    = (empty($this->field->param3) ? '' : $this->field->param3);
         $recordid = optional_param('rid', 0, PARAM_INT);
 
         // set $is_viewable flag
@@ -91,6 +94,9 @@ class data_field_template extends data_field_base {
                 case self::OP_END_WITH:    $this->is_viewable = ($value == substr(- strlen($value))); break;
             }
         }
+
+        $this->recordid = optional_param('rid', 0, PARAM_INT);
+        $this->dateformat = get_string('strftimedate', 'langconfig');
     }
 
     /**
@@ -100,11 +106,11 @@ class data_field_template extends data_field_base {
      */
     function define_default_field() {
         parent::define_default_field();
-        $this->field->param1 = '';
-        $this->field->param2 = '';
-        $this->field->param3 = '';
-        $this->field->param4 = '';
-        $this->field->param5 = '';
+        $this->field->param1 = ''; // fieldid
+        $this->field->param2 = ''; // operator
+        $this->field->param3 = ''; // value
+        $this->field->param4 = ''; // content
+        $this->field->param5 = ''; // format
         return true;
     }
 
@@ -162,12 +168,7 @@ class data_field_template extends data_field_base {
     }
 
     function generate_sql($tablealias, $value) {
-        global $DB;
-
-        static $i=0;
-        $i++;
-        $name = "df_template_$i";
-        return array(" ({$tablealias}.fieldid = {$this->field->id} AND ".$DB->sql_like("{$tablealias}.content", ":$name", false).") ", array($name=>"%$value%"));
+        return array('', array());
     }
 
     function print_after_form() {
@@ -186,26 +187,66 @@ class data_field_template extends data_field_base {
      */
     function display_browse_field($recordid, $template) {
         global $DB;
-
         if (! $this->is_viewable) {
-            return false;
+            return '';
+        }
+        if (! $itemid = $this->field->id) {
+            return '';
+        }
+        if (! $content = $this->field->param4) {
+            return '';
+        }
+        if (! $format = $this->field->param5) {
+            $format = FORMAT_MOODLE;
         }
 
-        $params = array('fieldid' => $this->field->id, 'recordid' => $recordid);
-        if (! $content = $DB->get_record('data_content', $params)) {
-            return false;
+        $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $this->get_fileoptions());
+        $content = format_text($content, $format, (object)array('filter' => false, 'para' => false));
+
+        $search = '/\[\[([^\]]+)]\]/';
+        $callback = array($this, 'replace_fieldname');
+        $content = preg_replace_callback($search, $callback, $content);
+
+        return $content;
+    }
+
+    protected function replace_fieldname($matches) {
+        global $DB, $USER;
+
+        if (! $name = $matches[1]) {
+            return '';
         }
 
-        if (isset($content->content)) {
-            $options = new stdClass();
-            $options->filter = false;
-            $options->para = false;
-            $str = file_rewrite_pluginfile_urls($content->content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $content->id, $this->get_options());
-            $str = format_text($str, $content->content1, $options);
+        if (isset($USER->$name)) {
+            return $USER->$name;
+        }
+
+        if (! $this->recordid) {
+            return '';
+        }
+
+        $params = array('dataid' => $this->data->id, 'name' => $name);
+        if (! $field = $DB->get_record('data_fields', $params)) {
+            return '';
+        }
+
+        $params = array('recordid' => $this->recordid, 'fieldid' => $field->id);
+        $content = $DB->get_field('data_content', 'content', $params);
+        if ($content===false) {
+            return '';
+        }
+
+        if ($field->type=='admin') {
+            $type = $field->param10;
         } else {
-            $str = '';
+            $type = $field->type;
         }
-        return $str;
+
+        switch ($type) {
+            case 'date': $content = userdate($content, $this->dateformat); break;
+        }
+
+        return $content;
     }
 
     /**
@@ -269,17 +310,15 @@ class data_field_template extends data_field_base {
      *
      * @return array
      */
-    public function get_editor_options() {
-        return array(
-            'trusttext'  => false,
-            'forcehttps' => false,
-            'subdirs'    => false,
-            'maxfiles'   => -1,
-            'context'    => $this->context,
-            'maxbytes'   => $this->field->param5,
-            'changeformat' => 0,
-            'noclean'    => false
-        );
+    public function get_fileoptions() {
+        return array('trusttext'  => false,
+                     'forcehttps' => false,
+                     'subdirs'    => false,
+                     'maxfiles'   => -1,
+                     'context'    => $this->context,
+                     'maxbytes'   => $this->field->param5,
+                     'changeformat' => 0,
+                     'noclean'    => false);
     }
 
     /*
@@ -345,7 +384,7 @@ class data_field_template extends data_field_base {
     public function format_edit_editor($title, $content, $format, $rows=3, $cols=40) {
 
         editors_head_setup();
-        $options = $this->get_editor_options();
+        $options = $this->get_fileoptions();
 
         $itemid = $this->field->id;
         $name = 'field_'.$itemid;
@@ -482,8 +521,8 @@ class data_field_template extends data_field_base {
         $name = 'field_'.$itemid;
         $this->field->param4 = optional_param($name.'_content', FORMAT_HTML, PARAM_RAW);
         $this->field->param5 = optional_param($name.'_format',  FORMAT_HTML, PARAM_INT);
-        if ($this->field->param5) {
-            $options = $this->get_editor_options();
+        if ($this->field->param4) {
+            $options = $this->get_fileoptions();
             $draftitemid = file_get_submitted_draft_itemid($name.'_itemid');
             $this->field->param4 = file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content', $itemid, $options, $this->field->param4);
         }
