@@ -31,13 +31,13 @@ $string['islessthan'] = 'is less than';
 $string['ismorethan'] = 'is more than';
 $string['isnotempty'] = 'is not empty';
 $string['isnotequalto'] = 'is not equal to';
-$string['fixlangpack'] = '**The Admin field is not yet properly installed**
+$string['fixlangpack'] = '**The Template field is not yet properly installed**
 
-Please append language strings for the Admin field to Database language file:
+Please append language strings for the Template field to Database language file:
 
 * EDIT: {$a->langfile}
-* ADD: $string[\'admin\'] = \'Admin\';
-* ADD: $string[\'nameadmin\'] = \'Admin field\';
+* ADD: $string[\'admin\'] = \'Template\';
+* ADD: $string[\'nameadmin\'] = \'Template field\';
 
 Then purge the Moodle caches:
 

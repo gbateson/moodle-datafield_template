@@ -22,7 +22,7 @@
  * edit access to any other type of field in a database activity
  *
  * @package    data
- * @subpackage datafield_admin
+ * @subpackage datafield_template
  * @copyright  2015 Gordon Bateson (gordon.bateson@gmail.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since      Moodle 2.3

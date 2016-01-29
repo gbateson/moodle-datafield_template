@@ -2,11 +2,11 @@
 The Template database field for Moodle >= 2.3
 ===============================================
 
-   The Template database field allow the specification of a formatted block of output
+   The Template database field allows the specification of a formatted block of output
    to be displayed on the "View list" or "View single" pages of a Database activity.
 
    The template can include other fields from this Database activity, as well as fields
-   from the user profile - excluding the login password :-)
+   from the user profile - excluding the login password and other sensitive information.
 
 =================================================
 To INSTALL this plugin
@@ -26,7 +26,7 @@ To INSTALL this plugin
        cd /PATH/TO/MOODLE
        echo '/mod/data/field/template/' >> '.git/info/exclude'
 
-    3. continue with steps 3 and 4 below
+       (continue with steps 3 and 4 below)
 
     ----------------
     Using ZIP
@@ -41,7 +41,7 @@ To INSTALL this plugin
        Then upload, or move, the "template" folder into the "mod/data/field" folder on
        your Moodle >= 2.3 site, to create a new folder at "mod/data/field/template"
 
-    3. continue with steps 3 and 4 below
+       (continue with steps 3 and 4 below)
 
     ----------------
     Using GIT or ZIP
