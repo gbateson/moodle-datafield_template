@@ -39,16 +39,28 @@ class data_field_template extends data_field_base {
 
     var $type = 'template';
 
-    const OP_EMPTY       = 1;
-    const OP_NOT_EMPTY   = 2;
-    const OP_EQUAL       = 3;
-    const OP_NOT_EQUAL   = 4;
-    const OP_MORE_THAN   = 5;
-    const OP_LESS_THAN   = 6;
-    const OP_CONTAIN     = 7;
-    const OP_NOT_CONTAIN = 8;
-    const OP_START_WITH  = 9;
-    const OP_END_WITH    = 10;
+    const STATUS_OPEN = 0;
+    const STATUS_KEEP = 1;
+    const STATUS_MORE = 2;
+    const STATUS_DROP = 3;
+
+    const OP_EMPTY         = 'EMPTY';
+    const OP_NOT_EMPTY     = 'NOT_EMPTY';
+
+    const OP_EQUAL         = 'EQUAL';
+    const OP_NOT_EQUAL     = 'NOT_EQUAL';
+    const OP_MORE_THAN     = 'MORE_THAN';
+    const OP_LESS_THAN     = 'LESS_THAN';
+
+    const OP_NUM_EQUAL     = 'NUM_EQUAL';
+    const OP_NUM_NOT_EQUAL = 'NUM_NOT_EQUAL';
+    const OP_NUM_MORE_THAN = 'NUM_MORE_THAN';
+    const OP_NUM_LESS_THAN = 'NUM_LESS_THAN';
+
+    const OP_CONTAIN       = 'CONTAIN';
+    const OP_NOT_CONTAIN   = 'NOT_CONTAIN';
+    const OP_START_WITH    = 'START_WITH';
+    const OP_END_WITH      = 'END_WITH';
 
     /**
      * the id of the data_record currently being viewed
@@ -56,24 +68,10 @@ class data_field_template extends data_field_base {
     var $recordid = 0;
 
     /**
-     * the date format used to format date fields
+     * the template currently being viewed
+     * one of "addtemplate", "singletemplate", "listtemplate", "rsstemplate"
      */
-    var $dateformat = 0;
-
-    /**
-     * This field just sets up a default field object
-     *
-     * @return bool
-     */
-    function define_default_field() {
-        parent::define_default_field();
-        $this->field->param1 = ''; // fieldid
-        $this->field->param2 = ''; // operator
-        $this->field->param3 = ''; // value
-        $this->field->param4 = ''; // content
-        $this->field->param5 = ''; // format
-        return true;
-    }
+    var $template = '';
 
     /*
      * displays the settings for this admin field on the "Fields" page
@@ -142,47 +140,21 @@ class data_field_template extends data_field_base {
     /**
      * Display the content of the field in browse mode
      *
-     * @param int $recordid
-     * @param object $template
+     * @param integer $recordid
+     * @param string  $template
      * @return bool|string
      */
     function display_browse_field($recordid, $template) {
+
         global $DB;
 
-        $fieldid  = (empty($this->field->param1) ? 0  : $this->field->param1);
-        $operator = (empty($this->field->param2) ? 0  : $this->field->param2);
-        $value    = (empty($this->field->param3) ? '' : $this->field->param3);
-
-        // set $is_viewable flag
-        if ($fieldid && $recordid) {
-            $params = array('fieldid' => $fieldid, 'recordid' => $recordid);
-            $content = $DB->get_field('data_content', 'content', $params);
-            $content = trim($content);
-            switch ($operator) {
-                case self::OP_EMPTY:       $is_viewable = empty($content); break;
-                case self::OP_NOT_EMPTY:   $is_viewable = (! empty($content)); break;
-                case self::OP_EQUAL:       $is_viewable = ($content == $value); break;
-                case self::OP_NOT_EQUAL:   $is_viewable = ($content != $value); break;
-                case self::OP_MORE_THAN:   $is_viewable = ($content > $value); break;
-                case self::OP_LESS_THAN:   $is_viewable = ($content < $value); break;
-                case self::OP_CONTAIN:     $is_viewable = strpos($value, $content)!==false; break;
-                case self::OP_NOT_CONTAIN: $is_viewable = strpos($value, $content)===false; break;
-                case self::OP_START_WITH:  $is_viewable = ($value == substr(0, strlen($value))); break;
-                case self::OP_END_WITH:    $is_viewable = ($value == substr(- strlen($value))); break;
-                default:                   $is_viewable = false;
-            }
-        }
-
-        if (! $is_viewable) {
-            return '';
-        }
         if (! $itemid = $this->field->id) {
             return '';
         }
-        if (! $content = $this->field->param4) {
+        if (! $content = $this->field->param1) {
             return '';
         }
-        if (! $format = $this->field->param5) {
+        if (! $format = $this->field->param2) {
             $format = FORMAT_MOODLE;
         }
 
@@ -192,9 +164,13 @@ class data_field_template extends data_field_base {
         // these values may be needed by the replace_fieldname() method
         $this->userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
         $this->user = $DB->get_record('user', array('id' => $this->userid));
-        $this->dateformat = get_string('strftimedate', 'langconfig');
         $this->recordid = $recordid;
+        $this->template = $template;
 
+        // reduce IF-ELSE-ENDIF blocks
+        $content = $this->replace_if_blocks($content);
+
+        // replace all fieldnames
         $search = '/\[\[([^\]]+)]\]/';
         $callback = array($this, 'replace_fieldname');
         $content = preg_replace_callback($search, $callback, $content);
@@ -202,29 +178,38 @@ class data_field_template extends data_field_base {
         return $content;
     }
 
+    /**
+     * Whether this module support files
+     *
+     * @param string $relativepath
+     * @return bool
+     */
+    function file_ok($relativepath) {
+        return true;
+    }
+
+    ///////////////////////////////////////////
+    // custom methods for parsing a template
+    ///////////////////////////////////////////
+
+    /**
+     * callback function to replace [[square brackets]]
+     * with content for the current data $recordid
+     */
     protected function replace_fieldname($matches) {
-        global $DB, $USER;
-
-        if (! $this->recordid) {
-            return '';
-        }
-
-        if (! $name = $matches[1]) {
-            return '';
-        }
-
+        $name = $matches[1];
         if (isset($this->user->$name)) {
 
             // these fields are accessible
-            $names = array(
-                'firstname', 'lastname', 'email',
-                'icq', 'skype', 'yahoo', 'aim', 'msn',
-                'phone1', 'phone2', 'institution', 'department',
-                'address', 'city', 'country', 'picture', 'imagealt',
-                'url', 'description', 'descriptionformat',
-                'lastnamephonetic', 'firstnamephonetic',
-                'middlename', 'alternatename'
-            );
+            $names = array('firstname', 'lastname',
+                           'email', 'phone1', 'phone2',
+                           'icq', 'skype', 'yahoo', 'aim', 'msn',
+                           'institution', 'department',
+                           'address', 'city', 'country',
+                           'picture', 'imagealt', 'url',
+                           'description', 'descriptionformat',
+                           'lastnamephonetic', 'firstnamephonetic',
+                           'middlename', 'alternatename');
 
             // the following user fields are not accessible
             // 'id', 'auth', 'confirmed', 'policyagreed',
@@ -244,42 +229,310 @@ class data_field_template extends data_field_base {
             }
         }
 
-        $params = array('dataid' => $this->data->id, 'name' => $name);
-        if (! $field = $DB->get_record('data_fields', $params)) {
-            return '';
+        if ($name==$this->field->name) {
+            return ''; // oops, recursive loop
         }
 
-        $params = array('recordid' => $this->recordid, 'fieldid' => $field->id);
-        $content = $DB->get_field('data_content', 'content', $params);
-        if ($content===false) {
-            return '';
+        if (! $field = data_get_field_from_name($name, $this->data, $this->cm)) {
+            return ''; // shouldn't happen !!
         }
 
-        if ($field->type=='admin') {
-            $type = $field->param10;
-        } else {
-            $type = $field->type;
+        return $field->display_browse_field($this->recordid, $this->template);
+    }
+
+    /**
+     * reduce all IF-THEN-ENDIF blocks in $content
+     *
+     * @param  string $content
+     * @return string
+     */
+    function replace_if_blocks($content) {
+
+        // regular expression to detect IF-ELSE-ENDIF token
+        $search = '(IF|ELIF|ELSE|ENDIF)';
+        $search = '/\[\['.$search.'([^\]]*)\]\]/s';
+        // $1 : token head
+        // $2 : token tail ($fieldname and optional $value)
+
+        // current nesting level of IF-ELSE-ENDIF
+        $level = 0;
+
+        // keep track of status at each level
+        $status = array($level => self::STATUS_OPEN);
+
+        // substrings of $content to drop
+        $drops = array();
+
+        // start of substring to be dropped
+        $drop = 0;
+
+        if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
+
+            $i_max = count($matches[0]);
+            for ($i=0; $i<$i_max; $i++) {
+
+                // cache status of current level
+                $oldstatus = $status[$level];
+
+                // get current IF-THEN-ENDIF token
+                list($token, $start) = $matches[0][$i];
+                $length = self::textlib('strlen', $token);
+
+                // drop previous block, if necessary
+                if ($drop) {
+                    $drops[] = array($drop, $start);
+                }
+
+                // drop this IF-ELSE-ENDIF token
+                $drops[] = array($start, $start + $length);
+
+                $head = $matches[1][$i][0];
+                $tail = $matches[2][$i][0];
+                $head = strtoupper($head);
+                $tail = trim($tail);
+                switch ($head) {
+
+                    case 'IF':
+                        $level++;
+                        switch ($oldstatus) {
+                            case self::STATUS_OPEN:
+                            case self::STATUS_KEEP:
+                                if ($this->check_condition($tail)) {
+                                    $status[$level] = self::STATUS_KEEP;
+                                } else {
+                                    $status[$level] = self::STATUS_MORE;
+                                }
+                                break;
+                            case self::STATUS_MORE:
+                            case self::STATUS_DROP:
+                                $status[$level] = self::STATUS_DROP;
+                                break;
+                        }
+                        break;
+
+                    case 'ELIF':
+                        switch ($status[$level]) {
+                            case self::STATUS_KEEP:
+                                $status[$level] = self::STATUS_DROP;
+                                break;
+                            case self::STATUS_MORE:
+                                if ($this->check_condition($tail)) {
+                                    $status[$level] = self::STATUS_KEEP;
+                                }
+                                break;
+                        }
+                        break;
+
+                    case 'ELSE':
+                        switch ($status[$level]) {
+                            case self::STATUS_KEEP:
+                                $status[$level] = self::STATUS_DROP;
+                                break;
+                            case self::STATUS_MORE:
+                                $status[$level] = self::STATUS_KEEP;
+                                break;
+                        }
+                        break;
+
+                    case 'ENDIF':
+                        unset($status[$level]);
+                        $level--;
+                        $status[$level] = self::STATUS_OPEN;
+                        break;
+                }
+
+                switch ($status[$level]) {
+                    case self::STATUS_OPEN:
+                    case self::STATUS_KEEP:
+                        $drop = 0;
+                        break;
+                    case self::STATUS_MORE:
+                    case self::STATUS_DROP:
+                        $drop = $start + $length;
+                        break;
+                }
+            }
         }
 
-        switch ($type) {
-            case 'date': $content = userdate($content, $this->dateformat); break;
+        // remove all unwanted substrings
+        $i_max = (count($drops) - 1);
+        for ($i=$i_max; $i>=0; $i--) {
+            $content = self::textlib('substr', $content, 0, $drops[$i][0]).
+                       self::textlib('substr', $content, $drops[$i][1]);
         }
 
         return $content;
     }
 
     /**
-     * Whether this module support files
+     * determine whether an if-condition is satisfied or not
      *
-     * @param string $relativepath
+     * @param string $tail
      * @return bool
      */
-    function file_ok($relativepath) {
-        return true;
+    function check_condition($tail) {
+
+        // expand $tail to get $fieldname, $operator and $value
+        $tail = explode(' ', $tail, 3);
+        switch (count($tail)) {
+            case 0: return false; // shouldn't happen !!
+            case 1: list($fieldname) = $tail;
+                    $operator = 'NOT_EMPTY';
+                    $value = '';
+                    break;
+            case 2: list($fieldname, $operator) = $tail;
+                    $value = '';
+                    break;
+            case 3: list($fieldname, $operator, $value) = $tail;
+                    break;
+        }
+
+        if ($fieldname==$this->field->name) {
+            return false; // prevent infinite loops
+        }
+
+        if (! $field = data_get_field_from_name($fieldname, $this->data)) {
+            return false; // unknown $fieldname - shouldn't happen !!
+        }
+
+        $content = $field->display_browse_field($this->recordid, $this->template);
+        list($operator, $content, $value) = $this->clean_condition($operator, $content, $value);
+
+        switch ($operator) {
+            case self::OP_EMPTY:         return empty($content);
+            case self::OP_NOT_EMPTY:     return (! empty($content));
+            case self::OP_EQUAL:         return ($content == $value);
+            case self::OP_NUM_EQUAL:     return ($content == $value);
+            case self::OP_NUM_NOT_EQUAL: return ($content != $value);
+            case self::OP_NOT_EQUAL:     return ($content != $value);
+            case self::OP_NUM_MORE_THAN: return ($content > $value);
+            case self::OP_MORE_THAN:     return ($content > $value);
+            case self::OP_NUM_LESS_THAN: return ($content < $value);
+            case self::OP_LESS_THAN:     return ($content < $value);
+            case self::OP_CONTAIN:       return strpos($value, $content)!==false;
+            case self::OP_NOT_CONTAIN:   return strpos($value, $content)===false;
+            case self::OP_START_WITH:    return ($value == substr(0, strlen($value)));
+            case self::OP_END_WITH:      return ($value == substr(- strlen($value)));
+            default:                     return false;
+        }
+    }
+
+    /**
+     * clean_condition
+     *
+     * @param  string $operator
+     * @return string
+     * @todo Finish documenting this function
+     */
+    protected function clean_condition($operator, $content, $value) {
+
+        $operator = self::textlib('strtoupper', $operator);
+        switch ($operator) {
+
+            case 'IS_EMPTY':
+                $operator = self::OP_EMPTY;
+                break;
+
+            case 'IS_NOT_EMPTY':
+                $operator = self::OP_NOT_EMPTY;
+                break;
+
+            case '=':
+            case '==':
+            case '===':
+            case 'eq':
+            case 'IS_EQUAL':
+            case 'EQUAL_TO':
+            case 'IS_EQUAL_TO':
+                $operator = self::OP_EQUAL;
+                break;
+
+            case '<>':
+            case '!=':
+            case '!==':
+            case 'ne':
+            case 'neq':
+            case 'IS_NOT_EQUAL':
+            case 'NOT_EQUAL_TO':
+            case 'IS_NOT_EQUAL_TO':
+                $operator = self::OP_NOT_EQUAL;
+                break;
+
+            case '>':
+            case 'gt':
+            case 'IS_MORE_THAN':
+                $operator = self::OP_MORE_THAN;
+                break;
+
+            case '<':
+            case 'lt':
+            case 'IS_LESS_THAN':
+                $operator = self::OP_LESS_THAN;
+                break;
+
+            case 'CONTAINS':
+                $operator = self::OP_CONTAIN;
+                break;
+
+            case 'NOT_CONTAINS':
+            case 'DOES_NOT_CONTAIN':
+                $operator = self::OP_NOT_CONTAIN;
+                break;
+
+            case 'STARTS_WITH':
+                $operator = self::OP_START_WITH;
+                break;
+
+            case 'ENDS_WITH':
+                $operator = self::OP_END_WITH;
+                break;
+
+            case self::OP_NUM_EQUAL:
+            case self::OP_NUM_NOT_EQUAL:
+            case self::OP_NUM_LESS_THAN:
+            case self::OP_NUM_MORE_THAN:
+                $search = '([0-9,.]+)';
+                $search = '/^.*'.$search.'.*$/';
+                $value = floatval(preg_replace($search, '$1', $value));
+                $content = floatval(preg_replace($search, '$1', $content));
+                break;
+        }
+
+        return array($operator, $content, $value);
+    }
+
+    /**
+     * textlib
+     *
+     * a wrapper method to offer consistent API for textlib class
+     * in Moodle 2.0 - 2.1, $textlib is first initiated, then called
+     * in Moodle 2.2 - 2.5, we use only static methods of the "textlib" class
+     * in Moodle >= 2.6, we use only static methods of the "core_text" class
+     *
+     * @param string $method
+     * @param mixed any extra params that are required by the textlib $method
+     * @return result from the textlib $method
+     * @todo Finish documenting this function
+     */
+    static public function textlib() {
+        if (class_exists('core_text')) {
+            // Moodle >= 2.6
+            $textlib = 'core_text';
+        } else if (method_exists('textlib', 'textlib')) {
+            // Moodle 2.0 - 2.1
+            $textlib = textlib_get_instance();
+        } else {
+            // Moodle 2.3 - 2.5
+            $textlib = 'textlib';
+        }
+        $args = func_get_args();
+        $method = array_shift($args);
+        $callback = array($textlib, $method);
+        return call_user_func_array($callback, $args);
     }
 
     ///////////////////////////////////////////
-    // custom methods
+    // custom methods for mod.html
     ///////////////////////////////////////////
 
     /*
@@ -312,7 +565,7 @@ class data_field_template extends data_field_base {
     }
 
     /*
-     * get options for editor formats (param4) for display in mod.html
+     * get options for editor formats (param2) for display in mod.html
      */
     public function get_formats() {
         return array(
@@ -335,7 +588,7 @@ class data_field_template extends data_field_base {
                      'subdirs'    => false,
                      'maxfiles'   => -1,
                      'context'    => $this->context,
-                     'maxbytes'   => $this->field->param5,
+                     'maxbytes'   => $this->field->param2,
                      'changeformat' => 0,
                      'noclean'    => false);
     }
@@ -538,12 +791,12 @@ class data_field_template extends data_field_base {
     public function get_editor_content() {
         $itemid = $this->field->id;
         $name = 'field_'.$itemid;
-        $this->field->param4 = optional_param($name.'_content', FORMAT_HTML, PARAM_RAW);
-        $this->field->param5 = optional_param($name.'_format',  FORMAT_HTML, PARAM_INT);
-        if ($this->field->param4) {
+        $this->field->param1 = optional_param($name.'_content', FORMAT_HTML, PARAM_RAW);
+        $this->field->param2 = optional_param($name.'_format',  FORMAT_HTML, PARAM_INT);
+        if ($this->field->param1) {
             $options = $this->get_fileoptions();
             $draftitemid = file_get_submitted_draft_itemid($name.'_itemid');
-            $this->field->param4 = file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content', $itemid, $options, $this->field->param4);
+            $this->field->param1 = file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content', $itemid, $options, $this->field->param1);
         }
     }
 

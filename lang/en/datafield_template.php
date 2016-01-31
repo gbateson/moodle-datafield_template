@@ -24,8 +24,10 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['pluginname'] = 'Template';
+/** required strings */
+$string['pluginname'] = 'Template field';
 
+/** more strings */
 $string['displaycondtions'] = 'Conditions for displaying this field';
 $string['islessthan'] = 'is less than';
 $string['ismorethan'] = 'is more than';

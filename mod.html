@@ -38,44 +38,9 @@
     $text  = $this->format_edit_textfield($name, $value, 'field'.$name);
     echo $this->format_table_row($name, $label, $text);
 
-    $conditions = array();
-
-    // fieldid
-    $name  = 'param1';
-    $options = $this->get_fieldids();
-    $default = (empty($this->field->$name) ? 0  : $this->field->$name);
-    $conditions[] = $this->format_edit_selectfield($name, $options, $default);
-
-    // operator
-    $name  = 'param2';
-    $options = $this->get_operators();
-    $default = (empty($this->field->$name) ? 0  : $this->field->$name);
-    $conditions[] = $this->format_edit_selectfield($name, $options, $default);
-
-    // value
-    $name  = 'param3';
-    $default = (empty($this->field->$name) ? '' : $this->field->$name);
-    $conditions[] = $this->format_edit_textfield($name, $default, 'field'.$name);
-
-    // displayconditions
-    $name = 'displaycondtions';
-    $label = get_string($name, 'datafield_template');
-    echo $this->format_table_row($name, $label, implode(' ', $conditions));
-
-    // content
-    $name = 'param4';
-    $content = (empty($this->field->$name) ? '' : $this->field->$name);
-
-    // format
-    $name  = 'param5';
-    $format = (empty($this->field->$name) ? FORMAT_HTML : $this->field->$name);
-
     $name = 'content';
     $label = get_string($name);
-    $text = $this->format_edit_editor($label, $content, $format, 5, 60);
+    $text = $this->format_edit_editor($label, $this->field->param1, $this->field->param2, 5, 60);
     echo $this->format_table_row($name, $label, $text);
 
 ?></table>
-<?php
-    echo $this->require_edit_js('menuparam1', 'menuparam2', 'id_param3');
-?>
