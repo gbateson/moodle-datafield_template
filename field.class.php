@@ -250,7 +250,7 @@ class data_field_template extends data_field_base {
 
         // regular expression to detect IF-ELSE-ENDIF token
         $search = '(IF|ELIF|ELSE|ENDIF)';
-        $search = '/\[\['.$search.'([^\]]*)\]\]/s';
+        $search = '/\[\['.$search.'([^\]]*)\]\][\n\r]+/s';
         // $1 : token head
         // $2 : token tail ($fieldname and optional $value)
 
@@ -276,7 +276,7 @@ class data_field_template extends data_field_base {
 
                 // get current IF-THEN-ENDIF token
                 list($token, $start) = $matches[0][$i];
-                $length = self::textlib('strlen', $token);
+                $length = strlen($token);
 
                 // drop previous block, if necessary
                 if ($drop) {
@@ -354,11 +354,17 @@ class data_field_template extends data_field_base {
             }
         }
 
+        if ($drop) {
+            $drops[] = array($drop, strlen($content));
+        }
+
         // remove all unwanted substrings
         $i_max = (count($drops) - 1);
         for ($i=$i_max; $i>=0; $i--) {
-            $content = self::textlib('substr', $content, 0, $drops[$i][0]).
-                       self::textlib('substr', $content, $drops[$i][1]);
+            list($start, $end) = $drops[$i];
+            $head = substr($content, 0, $start);
+            $tail = substr($content, $end);
+            $content = $head.$tail;
         }
 
         return $content;
@@ -426,7 +432,7 @@ class data_field_template extends data_field_base {
      */
     protected function clean_condition($operator, $content, $value) {
 
-        $operator = self::textlib('strtoupper', $operator);
+        $operator = strtoupper($operator);
         switch ($operator) {
 
             case 'IS_EMPTY':
@@ -527,36 +533,6 @@ class data_field_template extends data_field_base {
         }
 
         return array($operator, $content, $value);
-    }
-
-    /**
-     * textlib
-     *
-     * a wrapper method to offer consistent API for textlib class
-     * in Moodle 2.0 - 2.1, $textlib is first initiated, then called
-     * in Moodle 2.2 - 2.5, we use only static methods of the "textlib" class
-     * in Moodle >= 2.6, we use only static methods of the "core_text" class
-     *
-     * @param string $method
-     * @param mixed any extra params that are required by the textlib $method
-     * @return result from the textlib $method
-     * @todo Finish documenting this function
-     */
-    static public function textlib() {
-        if (class_exists('core_text')) {
-            // Moodle >= 2.6
-            $textlib = 'core_text';
-        } else if (method_exists('textlib', 'textlib')) {
-            // Moodle 2.0 - 2.1
-            $textlib = textlib_get_instance();
-        } else {
-            // Moodle 2.3 - 2.5
-            $textlib = 'textlib';
-        }
-        $args = func_get_args();
-        $method = array_shift($args);
-        $callback = array($textlib, $method);
-        return call_user_func_array($callback, $args);
     }
 
     ///////////////////////////////////////////
