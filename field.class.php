@@ -402,17 +402,17 @@ class data_field_template extends data_field_base {
             case self::OP_EMPTY:         return empty($content);
             case self::OP_NOT_EMPTY:     return (! empty($content));
             case self::OP_EQUAL:         return ($content == $value);
-            case self::OP_NUM_EQUAL:     return ($content == $value);
-            case self::OP_NUM_NOT_EQUAL: return ($content != $value);
             case self::OP_NOT_EQUAL:     return ($content != $value);
-            case self::OP_NUM_MORE_THAN: return ($content > $value);
             case self::OP_MORE_THAN:     return ($content > $value);
-            case self::OP_NUM_LESS_THAN: return ($content < $value);
             case self::OP_LESS_THAN:     return ($content < $value);
             case self::OP_CONTAIN:       return strpos($value, $content)!==false;
             case self::OP_NOT_CONTAIN:   return strpos($value, $content)===false;
             case self::OP_START_WITH:    return ($value == substr(0, strlen($value)));
             case self::OP_END_WITH:      return ($value == substr(- strlen($value)));
+            case self::OP_NUM_EQUAL:     return ($content == $value);
+            case self::OP_NUM_NOT_EQUAL: return ($content != $value);
+            case self::OP_NUM_MORE_THAN: return ($content > $value);
+            case self::OP_NUM_LESS_THAN: return ($content < $value);
             default:                     return false;
         }
     }
@@ -440,7 +440,7 @@ class data_field_template extends data_field_base {
             case '=':
             case '==':
             case '===':
-            case 'eq':
+            case 'EQ':
             case 'IS_EQUAL':
             case 'EQUAL_TO':
             case 'IS_EQUAL_TO':
@@ -450,8 +450,8 @@ class data_field_template extends data_field_base {
             case '<>':
             case '!=':
             case '!==':
-            case 'ne':
-            case 'neq':
+            case 'NE':
+            case 'NEQ':
             case 'IS_NOT_EQUAL':
             case 'NOT_EQUAL_TO':
             case 'IS_NOT_EQUAL_TO':
@@ -459,13 +459,16 @@ class data_field_template extends data_field_base {
                 break;
 
             case '>':
-            case 'gt':
+            case 'MT':
             case 'IS_MORE_THAN':
+            case 'GT':
+            case 'GREATER_THAN':
+            case 'IS_GREATER_THAN':
                 $operator = self::OP_MORE_THAN;
                 break;
 
             case '<':
-            case 'lt':
+            case 'LT':
             case 'IS_LESS_THAN':
                 $operator = self::OP_LESS_THAN;
                 break;
@@ -491,10 +494,35 @@ class data_field_template extends data_field_base {
             case self::OP_NUM_NOT_EQUAL:
             case self::OP_NUM_LESS_THAN:
             case self::OP_NUM_MORE_THAN:
-                $search = '([0-9,.]+)';
-                $search = '/^.*'.$search.'.*$/';
-                $value = floatval(preg_replace($search, '$1', $value));
-                $content = floatval(preg_replace($search, '$1', $content));
+
+                // get locale-specific characters for
+                // decimal point and thousands separator
+                $info = localeconv();
+                $point = $info['decimal_point'];
+                $separator = $info['thousands_sep'];
+                if ($separator=='' || $point != ',') {
+                    $separator = ',';
+                }
+
+                // build regular expression to extract numbers
+                $search = '0-9';
+                if ($point) {
+                    $search .= $point;
+                }
+                if ($separator) {
+                    $search .= $separator;
+                }
+                $search = '/^.*?(['.$search.']+).*?$/';
+
+                // extract numbers from $value and $content
+                $value = preg_replace($search, '$1', $value);
+                $content = preg_replace($search, '$1', $content);
+                if ($separator) {
+                    $value = str_replace($separator, '', $value);
+                    $content = str_replace($separator, '', $content);
+                }
+                $value = floatval($value);
+                $content = floatval($content);
                 break;
         }
 
