@@ -158,8 +158,11 @@ class data_field_template extends data_field_base {
             $format = FORMAT_MOODLE;
         }
 
-        $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $this->get_fileoptions());
-        $content = format_text($content, $format, (object)array('filter' => false, 'para' => false));
+        $options = $this->get_fileoptions();
+        $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $options);
+
+        $options = array('noclean' => true, 'filter' => false, 'para' => false);
+        $content = format_text($content, $format, $options);
 
         // these values may be needed by the replace_fieldname() method
         $this->userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
