@@ -252,8 +252,10 @@ class data_field_template extends data_field_base {
     function replace_if_blocks($content) {
 
         // regular expression to detect IF-ELSE-ENDIF token
+        // preceding spaces/tabs and following newlines
+        // are also grabbed, and will later be removed
         $search = '(IF|ELIF|ELSE|ENDIF)';
-        $search = '/\[\['.$search.'([^\]]*)\]\][\n\r]+/s';
+        $search = '/[ \t]*\[\['.$search.'([^\]]*)\]\][\n\r]+/s';
         // $1 : token head
         // $2 : token tail ($fieldname and optional $value)
 
@@ -435,6 +437,14 @@ class data_field_template extends data_field_base {
      */
     protected function clean_condition($operator, $content, $value) {
 
+        // remove enclosing quotes, if any from $value
+        $value = trim($value);
+        if ((substr($value, 0, 1)=='"' && substr($value, -1)=='"') ||
+            (substr($value, 0, 1)=="'" && substr($value, -1)=="'")) {
+            $value = substr($value, 1, -1);
+        }
+
+        // convert operator aliasses
         $operator = strtoupper($operator);
         switch ($operator) {
 
