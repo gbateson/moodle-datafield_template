@@ -161,9 +161,6 @@ class data_field_template extends data_field_base {
         $options = $this->get_fileoptions();
         $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $options);
 
-        $options = array('noclean' => true, 'filter' => false, 'para' => false);
-        $content = format_text($content, $format, $options);
-
         // these values may be needed by the replace_fieldname() method
         $this->userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
         $this->user = $DB->get_record('user', array('id' => $this->userid));
@@ -174,9 +171,12 @@ class data_field_template extends data_field_base {
         $content = $this->replace_if_blocks($content);
 
         // replace all fieldnames
-        $search = '/\[\[([^\]]+)]\]/';
+        $search = '/\[\[([^\]]+)]\][\r\n]*/';
         $callback = array($this, 'replace_fieldname');
         $content = preg_replace_callback($search, $callback, $content);
+
+        $options = array('noclean' => true, 'filter' => false, 'para' => false);
+        $content = format_text($content, $format, $options);
 
         return $content;
     }
@@ -255,7 +255,7 @@ class data_field_template extends data_field_base {
         // preceding spaces/tabs and following newlines
         // are also grabbed, and will later be removed
         $search = '(IF|ELIF|ELSE|ENDIF)';
-        $search = '/[ \t]*\[\['.$search.'([^\]]*)\]\][\n\r]+/s';
+        $search = '/[ \t]*\[\['.$search.'([^\]]*)\]\][\n\r]*/s';
         // $1 : token head
         // $2 : token tail ($fieldname and optional $value)
 
@@ -284,7 +284,7 @@ class data_field_template extends data_field_base {
                 $length = strlen($token);
 
                 // drop previous block, if necessary
-                if ($drop) {
+                if ($drop && $drop < $start) {
                     $drops[] = array($drop, $start);
                 }
 
@@ -342,7 +342,6 @@ class data_field_template extends data_field_base {
                     case 'ENDIF':
                         unset($status[$level]);
                         $level--;
-                        $status[$level] = self::STATUS_OPEN;
                         break;
                 }
 
@@ -353,7 +352,7 @@ class data_field_template extends data_field_base {
                         break;
                     case self::STATUS_MORE:
                     case self::STATUS_DROP:
-                        $drop = $start + $length;
+                        $drop = ($start + $length);
                         break;
                 }
             }
@@ -416,8 +415,8 @@ class data_field_template extends data_field_base {
             case self::OP_NOT_EQUAL:     return ($content != $value);
             case self::OP_MORE_THAN:     return ($content > $value);
             case self::OP_LESS_THAN:     return ($content < $value);
-            case self::OP_CONTAIN:       return strpos($value, $content)!==false;
-            case self::OP_NOT_CONTAIN:   return strpos($value, $content)===false;
+            case self::OP_CONTAIN:       return strpos($content, $value)!==false;
+            case self::OP_NOT_CONTAIN:   return strpos($content, $value)===false;
             case self::OP_START_WITH:    return ($value == substr(0, strlen($value)));
             case self::OP_END_WITH:      return ($value == substr(- strlen($value)));
             case self::OP_NUM_EQUAL:     return ($content == $value);
