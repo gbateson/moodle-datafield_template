@@ -660,13 +660,6 @@ class data_field_template extends data_field_base {
     }
 
     /*
-     * format a select field in mod.html
-     */
-    public function format_edit_selectfield($name, $values, $default) {
-        return html_writer::select($values, $name, $default);
-    }
-
-    /*
      * format an html editor for display in mod.html
      */
     public function format_edit_editor($title, $content, $format, $rows=3, $cols=40) {
