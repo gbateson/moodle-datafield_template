@@ -256,12 +256,7 @@ class data_field_template extends data_field_base {
             return ''; // shouldn't happen !!
         }
 
-        if (method_exists($field, 'get_template_value')) {
-            // special case to allow access to value of hidden "admin" fields
-            return $field->get_template_value($this->recordid, $this->template);
-        } else {
-            return $field->display_browse_field($this->recordid, $this->template);
-        }
+        return $field->display_browse_field($this->recordid, $this->template);
     }
 
     /**
@@ -426,7 +421,12 @@ class data_field_template extends data_field_base {
             return false; // unknown $fieldname - shouldn't happen !!
         }
 
-        $content = $field->display_browse_field($this->recordid, $this->template);
+        if (method_exists($field, 'get_condition_value')) {
+            // special case to allow access to value of hidden "admin" fields
+            $content = $field->get_condition_value($this->recordid, $this->template);
+        } else {
+            $content = $field->display_browse_field($this->recordid, $this->template);
+        }
         list($operator, $content, $value) = $this->clean_condition($operator, $content, $value);
 
         switch ($operator) {
