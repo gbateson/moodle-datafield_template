@@ -201,6 +201,22 @@ class data_field_template extends data_field_base {
      */
     protected function replace_fieldname($matches) {
         $name = $matches[1];
+
+        // special fields regarding course, data, and record information
+        switch ($name) {
+            case 'courseid'    : $this->data->course;
+            case 'courseurl'   : return new moodle_url('/course/view.php', array('id' => $this->data->course));
+
+            case 'dataid'      : return $this->data->id;
+            case 'dataname'    : return $this->data->name;
+            case 'dataintro'   : return format_text($this->data->intro, $this->data->introformat);
+            case 'dataurl'     : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id));
+
+            case 'recordid'    : return $this->recordid;
+            case 'recordurl'   : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id, 'rid' => $this->recordid));
+        }
+
+        // certain - not ALL - user fields are accessible
         if (isset($this->user->$name)) {
 
             // these fields are accessible
@@ -240,7 +256,12 @@ class data_field_template extends data_field_base {
             return ''; // shouldn't happen !!
         }
 
-        return $field->display_browse_field($this->recordid, $this->template);
+        if (method_exists($field, 'get_template_value')) {
+            // special case to allow access to value of hidden "admin" fields
+            return $field->get_template_value($this->recordid, $this->template);
+        } else {
+            return $field->display_browse_field($this->recordid, $this->template);
+        }
     }
 
     /**
