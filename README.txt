@@ -6,7 +6,161 @@ The Template database field for Moodle >= 2.3
    to be displayed on the "View list" or "View single" pages of a Database activity.
 
    The template can include other fields from this Database activity, as well as fields
-   from the user profile - excluding the login password and other sensitive information.
+   from the course, database activity, data record, capabilities page, and user profile
+   - excluding the login password and other sensitive information.
+
+   The following special fields are available:
+
+   courseid - the id of the current course
+   courseurl - the view url of the current course
+
+   dataid - the id of the current database activity
+   dataname - the name of the current database activity
+   dataintro - the intro text for the current database activity
+   dataurl - the view url of the current database activity
+
+   recordid - the id of the current record within this database activity
+   recordurl - the view url of the current record within this database activity
+
+   The following capability fields are available. They return TRUE or FALSE
+   depending on whether or not the viewing user has the specified capability.
+
+   can_addinstance
+   can_viewentry
+   can_writeentry
+   can_comment
+   can_rate
+   can_viewrating
+   can_viewanyrating
+   can_viewrating
+   can_viewallratings
+   can_viewrating
+   can_approve
+   can_manageentries
+   can_managecomments
+   can_managetemplates
+   can_viewalluserpresets
+   can_manageuserpresets
+   can_exportentry
+   can_exportownentry
+   can_exportallentries
+   can_exportuserinfo
+
+   The following user fields are available. The values are taken from
+   the profile page of the user who added the database record - not the
+   user who is viewing the record.
+
+   firstname, lastname,
+   department, institution,
+   address, city, country,
+   picture, imagealt,
+   description, descriptionformat,
+   firstnamephonetic, lastnamephonetic,
+   alternatename, middlename,
+   email, url,
+   phone1, phone2,
+   icq, skype, yahoo, aim, msn
+
+   Templates can include if-then-else blocks using the following syntax:
+
+   [[IF condition]]
+
+   [[ELIF condition]]
+
+   [[ELSE]]
+
+   [[ENDIF]]
+
+   The [[IF ...]] and [[ENDIF]] items are required but
+   the [[ELIF ...]] and [[ELSE]] items are optional
+
+   A "condition" may be one of the folowing:
+
+   field EMPTY
+   field NOT_EMPTY
+
+   field EQUAL        value
+   field NOT_EQUAL    value
+   field MORE_THAN    value
+   field LESS_THAN    value
+   field CONTAIN      value
+   field NOT_CONTAIN  value
+   field START_WITH   value
+   field END_WITH     value
+
+   field NUM_EQUAL      numeric_value
+   field NUM_NOT_EQUAL  numeric_value
+   field NUM_MORE_THAN  numeric_value
+   field NUM_LESS_THAN  numeric_value
+
+   If a value contains spaces or punctuation, it should be contained
+   within single or double quotes, e.g. "O'hara" or 'New York'
+
+   A number of alternatives for these conditions are available.
+   The alternatives cater for people who prefer abbreviations,
+   mathematical symbols or correct English grammar :-)
+
+   [[IF field EMPTY]]
+   (a) [[IF field IS_EMPTY]]
+
+   [[IF field NOT_EMPTY]]
+   (a) [[IF field]]
+   (b) [[IF field IS_NOT_EMPTY]]
+
+   [[IF field EQUAL value]]:
+   (a) [[IF field = value]]
+   (b) [[IF field == value]]
+   (c) [[IF field === value]]
+   (d) [[IF field EQ value]]
+   (e) [[IF field IS_EQUAL value]]
+   (f) [[IF field EQUAL_TO value]]
+   (g) [[IF field IS_EQUAL_TO value]]
+
+   [[IF field NOT_EQUAL value]]:
+   (a) [[IF field <> value]]
+   (b) [[IF field != value]]
+   (c) [[IF field !== value]]
+   (d) [[IF field NE value]]
+   (e) [[IF field NEQ value]]
+   (f) [[IF field IS_NOT_EQUAL value]]
+   (g) [[IF field NOT_EQUAL_TO value]]
+   (h) [[IF field IS_NOT_EQUAL_TO value]]
+
+   [[IF field MORE_THAN value]]
+   (a) [[IF field > value]]
+   (b) [[IF field MT value]]
+   (c) [[IF field IS_MORE_THAN value]]
+   (d) [[IF field GT value]]
+   (e) [[IF field GREATER_THAN value]]
+   (f) [[IF field IS_GREATER_THAN value]]
+
+   [[IF field LESS_THAN value]]
+   (a) [[IF field < value]]
+   (b) [[IF field LT value]]
+   (c) [[IF field IS_LESS_THAN value]]
+
+   [[IF field CONTAIN value]]
+   (a) [[IF field CONTAINS value]]
+
+   [[IF field NOT_CONTAIN value]]
+   (a) [[IF field NOT_CONTAINS value]]
+   (a) [[IF field DOES_NOT_CONTAIN value]]
+
+   [[IF field START_WITH value]]
+   (a) [[IF field STARTS_WITH value]]
+
+   [[IF field END_WITH value]]
+   (a) [[IF field ENDS_WITH value]]
+
+   Note that these if-then-else blocks can be nested, as in the following example:
+
+   [[IF country EQUAL Japan]]
+      [[IF city EQUAL Kochi]]
+         [[IF instituion EQUAL "Kochi University of Technology"]]
+            You are from KUT.
+         [[ENDIF]]
+      [[ENDIF]]
+   [[ENDIF]]
 
 =================================================
 To INSTALL this plugin
@@ -125,9 +279,8 @@ To ADD an Template field to a database activity
 
     5. From the "Field type" menu at the bottom of the page, select "Template"
 
-    6. Enter values for "Field name" and "Field description" and select the subtype of this field
+    6. Enter values for "Field name" and "Field description"
 
-    7. Click the "Save changes" button at the bottom of the page.
+    7. Enter the text for the template content and select the content format.
 
-    8. If necessary, you may need to further edit the field in order to add settings
-       that are specific to the selected subtype
+    8. Click the "Save changes" button at the bottom of the page.

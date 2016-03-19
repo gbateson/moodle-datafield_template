@@ -202,21 +202,56 @@ class data_field_template extends data_field_base {
     protected function replace_fieldname($matches) {
         $name = $matches[1];
 
-        // special fields regarding course, data, and record information
-        switch ($name) {
-            case 'courseid'    : $this->data->course;
-            case 'courseurl'   : return new moodle_url('/course/view.php', array('id' => $this->data->course));
+        // course id/url
+        if (substr($name, 0, 6)=='course') {
+            switch ($name) {
+                case 'courseid'    : return $this->data->course;
+                case 'courseurl'   : return new moodle_url('/course/view.php', array('id' => $this->data->course));
+            }
+        }
 
+        // data activity id/name/intro/url
+        if (substr($name, 0, 4)=='data') {
             case 'dataid'      : return $this->data->id;
             case 'dataname'    : return $this->data->name;
             case 'dataintro'   : return format_text($this->data->intro, $this->data->introformat);
             case 'dataurl'     : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id));
+        }
 
+        // data record id/url
+        if (substr($name, 0, 6)=='record') {
             case 'recordid'    : return $this->recordid;
             case 'recordurl'   : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id, 'rid' => $this->recordid));
         }
 
-        // certain - not ALL - user fields are accessible
+        // capabilities
+        if (substr($name, 0, 4)=='can_') {
+            switch (substr($name, 4)) {
+                case 'addinstance':
+                case 'viewentry':
+                case 'writeentry':
+                case 'comment':
+                case 'rate':
+                case 'viewrating':
+                case 'viewanyrating':
+                case 'viewrating':
+                case 'viewallratings':
+                case 'viewrating':
+                case 'approve':
+                case 'manageentries':
+                case 'managecomments':
+                case 'managetemplates':
+                case 'viewalluserpresets':
+                case 'manageuserpresets':
+                case 'exportentry':
+                case 'exportownentry':
+                case 'exportallentries':
+                case 'exportuserinfo':
+                    return has_capability('mod/data:'.substr($name, 4), $this->context);
+            }
+        }
+
+        // user fields
         if (isset($this->user->$name)) {
 
             // these fields are accessible
