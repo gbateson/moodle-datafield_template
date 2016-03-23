@@ -205,23 +205,27 @@ class data_field_template extends data_field_base {
         // course id/url
         if (substr($name, 0, 6)=='course') {
             switch ($name) {
-                case 'courseid'    : return $this->data->course;
-                case 'courseurl'   : return new moodle_url('/course/view.php', array('id' => $this->data->course));
+                case 'courseid'  : return $this->data->course;
+                case 'courseurl' : return new moodle_url('/course/view.php', array('id' => $this->data->course));
             }
         }
 
         // data activity id/name/intro/url
         if (substr($name, 0, 4)=='data') {
-            case 'dataid'      : return $this->data->id;
-            case 'dataname'    : return $this->data->name;
-            case 'dataintro'   : return format_text($this->data->intro, $this->data->introformat);
-            case 'dataurl'     : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id));
+            switch ($name) {
+                case 'dataid'    : return $this->data->id;
+                case 'dataname'  : return $this->data->name;
+                case 'dataintro' : return format_text($this->data->intro, $this->data->introformat);
+                case 'dataurl'   : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id));
+            }
         }
 
         // data record id/url
         if (substr($name, 0, 6)=='record') {
-            case 'recordid'    : return $this->recordid;
-            case 'recordurl'   : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id, 'rid' => $this->recordid));
+            switch ($name) {
+                case 'recordid'  : return $this->recordid;
+                case 'recordurl' : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id, 'rid' => $this->recordid));
+            }
         }
 
         // capabilities
