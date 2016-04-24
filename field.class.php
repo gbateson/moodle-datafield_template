@@ -34,6 +34,7 @@ defined('MOODLE_INTERNAL') || die();
 // get required files
 require_once($CFG->dirroot.'/lib/filelib.php');
 require_once($CFG->dirroot.'/repository/lib.php');
+require_once($CFG->dirroot.'/mod/data/field/admin/field.class.php');
 
 class data_field_template extends data_field_base {
 
@@ -73,26 +74,16 @@ class data_field_template extends data_field_base {
      */
     var $template = '';
 
-    /*
-     * displays the settings for this admin field on the "Fields" page
+    public $contentparam = 'param1';
+    public $formatparam  = 'param2';
+
+    /**
+     * displays the settings for this action field on the "Fields" page
      *
      * @return void, but output is echo'd to browser
      */
     function display_edit_field() {
-        global $CFG, $OUTPUT;
-        if (empty($this->field->id)) {
-            $strman = get_string_manager();
-            if (! $strman->string_exists($this->type, 'data')) {
-                $msg = (object)array(
-                    'langfile' => $CFG->dirroot.'/mod/data/lang/en/data.php',
-                    'readfile' => $CFG->dirroot.'/mod/data/field/admin/README.txt',
-                );
-                $msg = get_string('fixlangpack', 'datafield_'.$this->type, $msg);
-                $msg = format_text($msg, FORMAT_MARKDOWN);
-                $msg = html_writer::tag('div', $msg, array('class' => 'alert', 'style' => 'width: 100%; max-width: 640px;'));
-                echo $msg;
-            }
-        }
+        data_field_admin::check_lang_strings($this);
         parent::display_edit_field();
     }
 
@@ -100,7 +91,7 @@ class data_field_template extends data_field_base {
      * add a new admin field from the "Fields" page
      */
     function insert_field() {
-        $this->get_editor_content();
+        data_field_admin::get_editor_content($this);
         parent::insert_field();
     }
 
@@ -110,7 +101,7 @@ class data_field_template extends data_field_base {
      * @return void, but output is echo'd to browser
      */
     function update_field() {
-        $this->get_editor_content();
+        data_field_admin::get_editor_content($this);
         parent::update_field();
     }
 
@@ -638,249 +629,6 @@ class data_field_template extends data_field_base {
             self::OP_START_WITH  => get_string('startswith',    'filters'),
             self::OP_END_WITH    => get_string('endswith',      'filters')
         );
-    }
-
-    /*
-     * get options for editor formats (param2) for display in mod.html
-     */
-    public function get_formats() {
-        return array(
-            FORMAT_MOODLE   => get_string('formattext',     'moodle'), // 0
-            FORMAT_HTML     => get_string('formathtml',     'moodle'), // 1
-            FORMAT_PLAIN    => get_string('formatplain',    'moodle'), // 2
-            // FORMAT_WIKI  => get_string('formatwiki',     'moodle'), // 3 deprecated
-            FORMAT_MARKDOWN => get_string('formatmarkdown', 'moodle')  // 4
-        );
-    }
-
-    /**
-     * Returns options for embedded files
-     *
-     * @return array
-     */
-    public function get_fileoptions() {
-        return array('trusttext'  => false,
-                     'forcehttps' => false,
-                     'subdirs'    => false,
-                     'maxfiles'   => -1,
-                     'context'    => $this->context,
-                     'maxbytes'   => $this->field->param2,
-                     'changeformat' => 0,
-                     'noclean'    => false);
-    }
-
-    /*
-     * format a label in mod.html
-     */
-    public function format_table_row($name, $label, $text) {
-        $label = $this->format_edit_label($name, $label);
-        $output = $this->format_table_cell($label, 'c0').
-                  $this->format_table_cell($text,  'c1');
-        $output = html_writer::tag('tr', $output, array('class' => $name, 'style' => 'vertical-align: top;'));
-        return $output;
-    }
-
-    /*
-     * format a cell in mod.html
-     */
-    public function format_table_cell($text, $class) {
-        return html_writer::tag('td', $text, array('class' => $class));
-    }
-
-    /*
-     * format a label in mod.html
-     */
-    public function format_edit_label($name, $label) {
-        return html_writer::tag('label', $label, array('for' => 'id_'.$name));
-    }
-
-    /*
-     * format a text field in mod.html
-     */
-    public function format_edit_textfield($name, $value, $class, $size=10) {
-        $params = array('type'  => 'text',
-                        'id'    => 'id_'.$name,
-                        'name'  => $name,
-                        'value' => $value,
-                        'class' => $class,
-                        'size'  => $size);
-        return html_writer::empty_tag('input', $params);
-    }
-
-    /*
-     * format a textarea field in mod.html
-     */
-    public function format_edit_textarea($name, $value, $class, $rows=3, $cols=40) {
-        $params = array('id'    => 'id_'.$name,
-                        'name'  => $name,
-                        'class' => $class,
-                        'rows'  => $rows,
-                        'cols'  => $cols);
-        return html_writer::tag('textarea', $value, $params);
-    }
-
-    /*
-     * format an html editor for display in mod.html
-     */
-    public function format_edit_editor($title, $content, $format, $rows=3, $cols=40) {
-
-        editors_head_setup();
-        $options = $this->get_fileoptions();
-
-        $itemid = $this->field->id;
-        $name = 'field_'.$itemid;
-
-        if ($itemid){
-            $draftitemid = 0;
-            $text = clean_text($content, $format);
-            $text = file_prepare_draft_area($draftitemid, $this->context->id, 'mod_data', 'content', $itemid, $options, $text);
-        } else {
-            $draftitemid = file_get_unused_draft_itemid();
-            $text = '';
-        }
-
-        // get filepicker options, if required
-        if (empty($options['maxfiles'])) {
-            $filepicker_options = array();
-        } else {
-            $filepicker_options = $this->get_filepicker_options($draftitemid, $options['maxbytes']);
-        }
-
-
-        // set up editor
-        $editor = editors_get_preferred_editor($format);
-        $editor->set_text($text);
-        $editor->use_editor('id_'.$name.'_content', $options, $filepicker_options);
-
-        // format editor
-        $output = '';
-        $output .= $this->format_editor_content($draftitemid, $name, $content, $rows, $cols);
-        $output .= $this->format_editor_formats($editor, $name, $format);
-        return html_writer::tag('div', $output, array('title' => $title));
-    }
-
-    /*
-     * get filepicker options for editor in mod.html
-     */
-    public function get_filepicker_options($draftitemid, $maxbytes) {
-
-        // common filepicker arguments
-        $args = (object)array(
-            // need these three to filter repositories list
-            'return_types'   => (FILE_INTERNAL | FILE_EXTERNAL),
-            'context'        => $this->context,
-            'env'            => 'filepicker'
-        );
-
-        // advimage plugin
-        $args->accepted_types = array('web_image');
-        $image_options = initialise_filepicker($args);
-        $image_options->context = $this->context;
-        $image_options->client_id = uniqid();
-        $image_options->maxbytes = $maxbytes;
-        $image_options->env = 'editor';
-        $image_options->itemid = $draftitemid;
-
-        // moodlemedia plugin
-        $args->accepted_types = array('video', 'audio');
-        $media_options = initialise_filepicker($args);
-        $media_options->context = $this->context;
-        $media_options->client_id = uniqid();
-        $media_options->maxbytes  = $maxbytes;
-        $media_options->env = 'editor';
-        $media_options->itemid = $draftitemid;
-
-        // advlink plugin
-        $args->accepted_types = '*';
-        $link_options = initialise_filepicker($args);
-        $link_options->context = $this->context;
-        $link_options->client_id = uniqid();
-        $link_options->maxbytes  = $maxbytes;
-        $link_options->env = 'editor';
-        $link_options->itemid = $draftitemid;
-
-        return array(
-            'image' => $image_options,
-            'media' => $media_options,
-            'link'  => $link_options
-        );
-    }
-
-    /*
-     * format editor content display in mod.html
-     */
-    public function format_editor_content($draftitemid, $name, $content, $rows, $cols) {
-        $output = '';
-
-        // hidden element to store $draftitemid
-        $params = array('name'  => $name.'_itemid',
-                        'value' => $draftitemid,
-                        'type'  => 'hidden');
-        $output .= html_writer::empty_tag('input', $params);
-
-        // textarea element to be converted to editor
-        $output .= html_writer::start_tag('div');
-        $params = array('id'   => 'id_'.$name.'_content',
-                        'name' => $name.'_content',
-                        'rows' => $rows,
-                        'cols' => $cols,
-                        'spellcheck' => 'true');
-        $output .= html_writer::tag('textarea', $content, $params);
-        $output .= html_writer::end_tag('div');
-
-        return $output;
-    }
-
-    /*
-     * format list of editor formats for display in mod.html
-     */
-    public function format_editor_formats($editor, $name, $format) {
-
-        // get the valid formats
-        $strformats = format_text_menu();
-        $formatids =  $editor->get_supported_formats();
-        foreach ($formatids as $formatid) {
-            $formats[$formatid] = $strformats[$formatid];
-        }
-
-        // get label and select element for the formats
-        $output = '';
-        $params = array('for'   => 'id_'.$name.'_format',
-                        'class' => 'accesshide');
-        $output .= html_writer::tag('label', get_string('format'), $params);
-        $output .= html_writer::select($formats, $name.'_format', $format);
-
-        // wrap it all in a DIV ... not sure why :-)
-        return html_writer::tag('div', $output);
-    }
-
-    /*
-     * receive editor content from mod.html
-     */
-    public function get_editor_content() {
-        $itemid = $this->field->id;
-        $name = 'field_'.$itemid;
-        $this->field->param1 = optional_param($name.'_content', FORMAT_HTML, PARAM_RAW);
-        $this->field->param2 = optional_param($name.'_format',  FORMAT_HTML, PARAM_INT);
-        if ($this->field->param1) {
-            $options = $this->get_fileoptions();
-            $draftitemid = file_get_submitted_draft_itemid($name.'_itemid');
-            $this->field->param1 = file_save_draft_area_files($draftitemid, $this->context->id, 'mod_data', 'content', $itemid, $options, $this->field->param1);
-        }
-    }
-
-    /*
-     * add js to required in mod.html
-     */
-    public function require_edit_js($fieldid, $operatorid, $valueid) {
-        global $PAGE;
-        $module = array('name' => 'M.datafield_template', 'fullpath' => '/mod/data/field/template/template.js');
-
-        $options = array('sourceid' => $fieldid, 'targetid' => $operatorid, 'values' => array(''));
-        $PAGE->requires->js_init_call('M.datafield_template.disable_condition', $options, false, $module);
-
-        $options = array('sourceid' => $operatorid, 'targetid' => $valueid, 'values' => array('', '1', '2'));
-        $PAGE->requires->js_init_call('M.datafield_template.disable_condition', $options, false, $module);
     }
 }
 

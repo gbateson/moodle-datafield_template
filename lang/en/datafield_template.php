@@ -25,7 +25,7 @@
  */
 
 /** required strings */
-$string['pluginname'] = 'Template field';
+$string['pluginname'] = 'Template';
 
 /** more strings */
 $string['displaycondtions'] = 'Conditions for displaying this field';
@@ -33,16 +33,3 @@ $string['islessthan'] = 'is less than';
 $string['ismorethan'] = 'is more than';
 $string['isnotempty'] = 'is not empty';
 $string['isnotequalto'] = 'is not equal to';
-$string['fixlangpack'] = '**The Template field is not yet properly installed**
-
-Please append language strings for the Template field to Database language file:
-
-* EDIT: {$a->langfile}
-* ADD: $string[\'admin\'] = \'Template\';
-* ADD: $string[\'nameadmin\'] = \'Template field\';
-
-Then purge the Moodle caches:
-
-* Administration -> Site administration -> Development -> Purge all caches
-
-See {$a->readfile} for more details.';

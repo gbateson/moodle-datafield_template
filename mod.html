@@ -26,21 +26,12 @@
  ?>
 <table width="100%" cellpadding="5" class="datafield_template"><?php
 
-    $name  = 'name';
-    $value = $this->field->$name;
-    $label = get_string('field'.$name, 'data');
-    $text  = $this->format_edit_textfield($name, $value, 'field'.$name);
-    echo $this->format_table_row($name, $label, $text);
-
-    $name  = 'description';
-    $value = $this->field->$name;
-    $label = get_string('field'.$name, 'data');
-    $text  = $this->format_edit_textfield($name, $value, 'field'.$name);
-    echo $this->format_table_row($name, $label, $text);
+    data_field_admin::format_core_field($this->field, 'name');
+    data_field_admin::format_core_field($this->field, 'description');
 
     $name = 'content';
     $label = get_string($name);
-    $text = $this->format_edit_editor($label, $this->field->param1, $this->field->param2, 5, 60);
-    echo $this->format_table_row($name, $label, $text);
+    $text = data_field_admin::format_editor_field($this, $label, 5, 60);
+    echo data_field_admin::format_table_row($name, $label, $text);
 
 ?></table>

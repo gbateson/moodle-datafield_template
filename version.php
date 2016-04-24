@@ -23,7 +23,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'datafield_template';
-$plugin->requires  = 2012062500; // Moodle 2.3
-$plugin->version   = 2016032211;
-$plugin->release   = '2016-03-22 (11)';
+$plugin->component    = 'datafield_template';
+$plugin->dependencies = array('datafield_admin' => ANY_VERSION);
+$plugin->requires     = 2012062500; // Moodle 2.3
+$plugin->version      = 2016042412;
+$plugin->release      = '2016-04-24 (12)';
