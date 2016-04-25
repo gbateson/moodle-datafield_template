@@ -136,7 +136,6 @@ class data_field_template extends data_field_base {
      * @return bool|string
      */
     function display_browse_field($recordid, $template) {
-
         global $DB;
 
         if (! $itemid = $this->field->id) {
@@ -149,24 +148,25 @@ class data_field_template extends data_field_base {
             $format = FORMAT_MOODLE;
         }
 
-        $options = $this->get_fileoptions();
+        $options = data_field_admin::get_fileoptions($this->context);
         $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $options);
 
-        // these values may be needed by the replace_fieldname() method
-        $this->userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
-        $this->user = $DB->get_record('user', array('id' => $this->userid));
-        $this->recordid = $recordid;
-        $this->template = $template;
+        // these values may be needed by the replace_fieldnames() method
+        $userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
+        $user = $DB->get_record('user', array('id' => $userid));
 
         // reduce IF-ELSE-ENDIF blocks
-        $content = $this->replace_if_blocks($content);
+        $content = self::replace_if_blocks($this->data, $this->field,
+                                           $recordid, $template,
+                                           $content);
 
         // replace all fieldnames
-        $search = '/\[\[([^\]]+)]\][\r\n]*/';
-        $callback = array($this, 'replace_fieldname');
-        $content = preg_replace_callback($search, $callback, $content);
+        $content = self::replace_fieldnames($this->context, $this->cm,
+                                            $this->data, $this->field,
+                                            $recordid, $template,
+                                            $user, $content);
 
-        $options = array('noclean' => true, 'filter' => false, 'para' => false);
+        $options = data_field_admin::get_formatoptions();
         $content = format_text($content, $format, $options);
 
         return $content;
@@ -183,111 +183,41 @@ class data_field_template extends data_field_base {
     }
 
     ///////////////////////////////////////////
-    // custom methods for parsing a template
+    // custom methods for mod.html
     ///////////////////////////////////////////
 
-    /**
-     * callback function to replace [[square brackets]]
-     * with content for the current data $recordid
+    /*
+     * get options for fieldids (param1) for display in mod.html
      */
-    protected function replace_fieldname($matches) {
-        $name = $matches[1];
-
-        // course id/url
-        if (substr($name, 0, 6)=='course') {
-            switch ($name) {
-                case 'courseid'  : return $this->data->course;
-                case 'courseurl' : return new moodle_url('/course/view.php', array('id' => $this->data->course));
-            }
-        }
-
-        // data activity id/name/intro/url
-        if (substr($name, 0, 4)=='data') {
-            switch ($name) {
-                case 'dataid'    : return $this->data->id;
-                case 'dataname'  : return $this->data->name;
-                case 'dataintro' : return format_text($this->data->intro, $this->data->introformat);
-                case 'dataurl'   : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id));
-            }
-        }
-
-        // data record id/url
-        if (substr($name, 0, 6)=='record') {
-            switch ($name) {
-                case 'recordid'  : return $this->recordid;
-                case 'recordurl' : return new moodle_url('/mod/data/view.php', array('d' => $this->data->id, 'rid' => $this->recordid));
-            }
-        }
-
-        // capabilities
-        if (substr($name, 0, 4)=='can_') {
-            switch (substr($name, 4)) {
-                case 'addinstance':
-                case 'viewentry':
-                case 'writeentry':
-                case 'comment':
-                case 'rate':
-                case 'viewrating':
-                case 'viewanyrating':
-                case 'viewrating':
-                case 'viewallratings':
-                case 'viewrating':
-                case 'approve':
-                case 'manageentries':
-                case 'managecomments':
-                case 'managetemplates':
-                case 'viewalluserpresets':
-                case 'manageuserpresets':
-                case 'exportentry':
-                case 'exportownentry':
-                case 'exportallentries':
-                case 'exportuserinfo':
-                    return has_capability('mod/data:'.substr($name, 4), $this->context);
-            }
-        }
-
-        // user fields
-        if (isset($this->user->$name)) {
-
-            // these fields are accessible
-            $names = array('firstname', 'lastname',
-                           'email', 'phone1', 'phone2',
-                           'icq', 'skype', 'yahoo', 'aim', 'msn',
-                           'institution', 'department',
-                           'address', 'city', 'country',
-                           'picture', 'imagealt', 'url',
-                           'description', 'descriptionformat',
-                           'lastnamephonetic', 'firstnamephonetic',
-                           'middlename', 'alternatename');
-
-            // the following user fields are not accessible
-            // 'id', 'auth', 'confirmed', 'policyagreed',
-            // 'deleted', 'suspended', 'mnethostid',
-            // 'username', 'password', 'idnumber',
-            // 'emailstop', 'lang', 'theme', 'timezone',
-            // 'firstaccess', 'lastaccess', 'lastlogin',
-            // 'currentlogin', 'lastip', 'secret',
-            // 'mailformat', 'maildigest', 'maildisplay',
-            // 'autosubscribe', 'trackforums', 'timecreated',
-            // 'timemodified', 'trustbitmask', 'calendartype',
-
-            if (in_array($name, $names)) {
-                return $this->user->$name;
-            } else {
-                return str_repeat('*', 12);
-            }
-        }
-
-        if ($name==$this->field->name) {
-            return ''; // oops, recursive loop
-        }
-
-        if (! $field = data_get_field_from_name($name, $this->data, $this->cm)) {
-            return ''; // shouldn't happen !!
-        }
-
-        return $field->display_browse_field($this->recordid, $this->template);
+    public function get_fieldids() {
+        global $DB;
+        $select = 'dataid = ? AND type != ?';
+        $params = array($this->data->id, $this->type);
+        return $DB->get_records_select_menu('data_fields', $select, $params, 'id', 'id,name');
     }
+
+    /*
+     * get options for operators (param2) for display in mod.html
+     */
+    public function get_operators() {
+        $plugin = 'datafield_template';
+        return array(
+            self::OP_EMPTY       => get_string('isempty',       'filters'),
+            self::OP_NOT_EMPTY   => get_string('isnotempty',    $plugin),
+            self::OP_EQUAL       => get_string('isequalto',     'filters'),
+            self::OP_NOT_EQUAL   => get_string('isnotequalto',  $plugin),
+            self::OP_MORE_THAN   => get_string('ismorethan',    $plugin),
+            self::OP_LESS_THAN   => get_string('islessthan',    $plugin),
+            self::OP_CONTAIN     => get_string('contains',      'filters'),
+            self::OP_NOT_CONTAIN => get_string('doesnotcontain','filters'),
+            self::OP_START_WITH  => get_string('startswith',    'filters'),
+            self::OP_END_WITH    => get_string('endswith',      'filters')
+        );
+    }
+
+    ///////////////////////////////////////////
+    // static methods for parsing a template
+    ///////////////////////////////////////////
 
     /**
      * reduce all IF-THEN-ENDIF blocks in $content
@@ -295,7 +225,7 @@ class data_field_template extends data_field_base {
      * @param  string $content
      * @return string
      */
-    function replace_if_blocks($content) {
+    static public function replace_if_blocks($data, $field, $recordid, $template, $content) {
 
         // regular expression to detect IF-ELSE-ENDIF token
         // preceding spaces/tabs and following newlines
@@ -348,7 +278,7 @@ class data_field_template extends data_field_base {
                         switch ($oldstatus) {
                             case self::STATUS_OPEN:
                             case self::STATUS_KEEP:
-                                if ($this->check_condition($tail)) {
+                                if (self::check_condition($data, $field, $recordid, $template, $tail)) {
                                     $status[$level] = self::STATUS_KEEP;
                                 } else {
                                     $status[$level] = self::STATUS_MORE;
@@ -367,7 +297,7 @@ class data_field_template extends data_field_base {
                                 $status[$level] = self::STATUS_DROP;
                                 break;
                             case self::STATUS_MORE:
-                                if ($this->check_condition($tail)) {
+                                if (self::check_condition($data, $field, $recordid, $template, $tail)) {
                                     $status[$level] = self::STATUS_KEEP;
                                 }
                                 break;
@@ -426,7 +356,7 @@ class data_field_template extends data_field_base {
      * @param string $tail
      * @return bool
      */
-    function check_condition($tail) {
+    static public function check_condition($data, $field, $recordid, $template, $tail) {
 
         // expand $tail to get $fieldname, $operator and $value
         $tail = explode(' ', $tail, 3);
@@ -443,21 +373,21 @@ class data_field_template extends data_field_base {
                     break;
         }
 
-        if ($fieldname==$this->field->name) {
+        if ($fieldname==$field->name) {
             return false; // prevent infinite loops
         }
 
-        if (! $field = data_get_field_from_name($fieldname, $this->data)) {
+        if (! $field = data_get_field_from_name($fieldname, $data)) {
             return false; // unknown $fieldname - shouldn't happen !!
         }
 
         if (method_exists($field, 'get_condition_value')) {
             // special case to allow access to value of hidden "admin" fields
-            $content = $field->get_condition_value($this->recordid, $this->template);
+            $content = $field->get_condition_value($recordid, $template);
         } else {
-            $content = $field->display_browse_field($this->recordid, $this->template);
+            $content = $field->display_browse_field($recordid, $template);
         }
-        list($operator, $content, $value) = $this->clean_condition($operator, $content, $value);
+        list($operator, $content, $value) = self::clean_condition($operator, $content, $value);
 
         switch ($operator) {
             case self::OP_EMPTY:         return empty($content);
@@ -482,10 +412,11 @@ class data_field_template extends data_field_base {
      * clean_condition
      *
      * @param  string $operator
-     * @return string
-     * @todo Finish documenting this function
+     * @param  string $content
+     * @param  string $value
+     * @return array($operator, $content, $value)
      */
-    protected function clean_condition($operator, $content, $value) {
+    static public function clean_condition($operator, $content, $value) {
 
         // remove enclosing quotes, if any from $value
         $value = trim($value);
@@ -598,37 +529,125 @@ class data_field_template extends data_field_base {
         return array($operator, $content, $value);
     }
 
-    ///////////////////////////////////////////
-    // custom methods for mod.html
-    ///////////////////////////////////////////
-
-    /*
-     * get options for fieldids (param1) for display in mod.html
+    /**
+     * replace all fieldnames in [[square brackets]]
+     * in content from the current data $recordid
      */
-    public function get_fieldids() {
-        global $DB;
-        $select = 'dataid = ? AND type != ?';
-        $params = array($this->data->id, $this->type);
-        return $DB->get_records_select_menu('data_fields', $select, $params, 'id', 'id,name');
+    static public function replace_fieldnames($context, $cm, $data, $field, $recordid, $template, $user, $content) {
+        $search = '/\[\[([^\]]+)]\][\r\n]*/';
+        if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
+            $i_max = count($matches[0]) - 1;
+            for ($i=$i_max; $i>=0; $i--) {
+                $match = $matches[0][$i][0];
+                $start = $matches[0][$i][1];
+                $replace = $matches[1][$i][0]; // fieldname
+                $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $replace);
+                $content = substr_replace($content, $replace, $start, strlen($match));
+            }
+        }
+        return $content;
     }
 
-    /*
-     * get options for operators (param2) for display in mod.html
+    /**
+     * replace a single fieldname with content
+     * from the current data record (id=$recordid)
      */
-    public function get_operators() {
-        $plugin = 'datafield_template';
-        return array(
-            self::OP_EMPTY       => get_string('isempty',       'filters'),
-            self::OP_NOT_EMPTY   => get_string('isnotempty',    $plugin),
-            self::OP_EQUAL       => get_string('isequalto',     'filters'),
-            self::OP_NOT_EQUAL   => get_string('isnotequalto',  $plugin),
-            self::OP_MORE_THAN   => get_string('ismorethan',    $plugin),
-            self::OP_LESS_THAN   => get_string('islessthan',    $plugin),
-            self::OP_CONTAIN     => get_string('contains',      'filters'),
-            self::OP_NOT_CONTAIN => get_string('doesnotcontain','filters'),
-            self::OP_START_WITH  => get_string('startswith',    'filters'),
-            self::OP_END_WITH    => get_string('endswith',      'filters')
-        );
+    static public function replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $fieldname) {
+
+        // course id/url
+        if (substr($fieldname, 0, 6)=='course') {
+            switch ($fieldname) {
+                case 'courseid'  : return $data->course;
+                case 'courseurl' : return new moodle_url('/course/view.php', array('id' => $data->course));
+            }
+        }
+
+        // data activity id/name/intro/url
+        if (substr($fieldname, 0, 4)=='data') {
+            switch ($fieldname) {
+                case 'dataid'    : return $data->id;
+                case 'dataname'  : return $data->name;
+                case 'dataintro' : return format_text($data->intro, $data->introformat);
+                case 'dataurl'   : return new moodle_url('/mod/data/view.php', array('d' => $data->id));
+            }
+        }
+
+        // data record id/url
+        if (substr($fieldname, 0, 6)=='record') {
+            switch ($fieldname) {
+                case 'recordid'  : return $recordid;
+                case 'recordurl' : return new moodle_url('/mod/data/view.php', array('d' => $data->id, 'rid' => $recordid));
+            }
+        }
+
+        // capabilities
+        if (substr($fieldname, 0, 4)=='can_') {
+            switch (substr($fieldname, 4)) {
+                case 'addinstance':
+                case 'viewentry':
+                case 'writeentry':
+                case 'comment':
+                case 'rate':
+                case 'viewrating':
+                case 'viewanyrating':
+                case 'viewrating':
+                case 'viewallratings':
+                case 'viewrating':
+                case 'approve':
+                case 'manageentries':
+                case 'managecomments':
+                case 'managetemplates':
+                case 'viewalluserpresets':
+                case 'manageuserpresets':
+                case 'exportentry':
+                case 'exportownentry':
+                case 'exportallentries':
+                case 'exportuserinfo':
+                    return has_capability('mod/data:'.substr($fieldname, 4), $context);
+            }
+        }
+
+        // user fields
+        if (isset($user->$fieldname)) {
+
+            // these fields are accessible
+            $names = array('firstname', 'lastname',
+                           'email', 'phone1', 'phone2',
+                           'icq', 'skype', 'yahoo', 'aim', 'msn',
+                           'institution', 'department',
+                           'address', 'city', 'country',
+                           'picture', 'imagealt', 'url',
+                           'description', 'descriptionformat',
+                           'lastnamephonetic', 'firstnamephonetic',
+                           'middlename', 'alternatename');
+
+            // the following user fields are not accessible
+            // 'id', 'auth', 'confirmed', 'policyagreed',
+            // 'deleted', 'suspended', 'mnethostid',
+            // 'username', 'password', 'idnumber',
+            // 'emailstop', 'lang', 'theme', 'timezone',
+            // 'firstaccess', 'lastaccess', 'lastlogin',
+            // 'currentlogin', 'lastip', 'secret',
+            // 'mailformat', 'maildigest', 'maildisplay',
+            // 'autosubscribe', 'trackforums', 'timecreated',
+            // 'timemodified', 'trustbitmask', 'calendartype',
+
+            if (in_array($fieldname, $names)) {
+                return $user->$fieldname;
+            } else {
+                return str_repeat('*', 12);
+            }
+        }
+
+        if ($fieldname==$field->name) {
+            return ''; // oops, recursive loop
+        }
+
+        if (! $field = data_get_field_from_name($fieldname, $data, $cm)) {
+            return ''; // shouldn't happen !!
+        }
+
+        return $field->display_browse_field($recordid, $template);
     }
 }
 
