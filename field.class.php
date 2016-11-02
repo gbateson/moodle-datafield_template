@@ -183,17 +183,11 @@ class data_field_template extends data_field_base {
     }
 
     /**
-     * text export is not supported for "template" fields
-     */
-    function text_export_supported() {
-        return false;
-    }
-
-    /**
-     * text export is not supported for "template" fields
+     * text export return that formated field value
+     * that would be displayed by the "singletemplate"
      */
     function export_text_value($record) {
-        return '';
+        return $this->display_browse_field($record->id, 'singletemplate');
     }
 
     ///////////////////////////////////////////
