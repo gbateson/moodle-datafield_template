@@ -187,7 +187,12 @@ class data_field_template extends data_field_base {
      * that would be displayed by the "singletemplate"
      */
     function export_text_value($record) {
-        return $this->display_browse_field($record->id, 'singletemplate');
+        if (empty($record) || empty($record->id)) {
+            $recordid = 0;
+        } else {
+            $recordid = $record->id;
+        }
+        return $this->display_browse_field($recordid, 'singletemplate');
     }
 
     ///////////////////////////////////////////
