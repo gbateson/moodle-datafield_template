@@ -192,7 +192,10 @@ class data_field_template extends data_field_base {
         } else {
             $recordid = $record->id;
         }
-        return $this->display_browse_field($recordid, 'singletemplate');
+        $text = $this->display_browse_field($recordid, 'singletemplate');
+        $text = preg_replace('/(<\/?(br|div|p)[^>]*>)\s+/', '$1', $text);
+        $text = preg_replace('/\s+/', ' ', $text);
+        return $text;
     }
 
     ///////////////////////////////////////////
