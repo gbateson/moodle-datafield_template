@@ -182,6 +182,20 @@ class data_field_template extends data_field_base {
         return true;
     }
 
+    /**
+     * text export is not supported for "template" fields
+     */
+    function text_export_supported() {
+        return false;
+    }
+
+    /**
+     * text export is not supported for "template" fields
+     */
+    function export_text_value($record) {
+        return '';
+    }
+
     ///////////////////////////////////////////
     // custom methods for mod.html
     ///////////////////////////////////////////
