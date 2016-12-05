@@ -593,6 +593,7 @@ class data_field_template extends data_field_base {
             switch ($fieldname) {
                 case 'recordid'  : return $recordid;
                 case 'recordurl' : return new moodle_url('/mod/data/view.php', array('d' => $data->id, 'rid' => $recordid));
+                case 'recordrating' : return self::get_recordrating($data, $recordid); // check permissions ?
             }
         }
 
@@ -604,10 +605,8 @@ class data_field_template extends data_field_base {
                 case 'writeentry':
                 case 'comment':
                 case 'rate':
-                case 'viewrating':
-                case 'viewanyrating':
-                case 'viewrating':
                 case 'viewallratings':
+                case 'viewanyrating':
                 case 'viewrating':
                 case 'approve':
                 case 'manageentries':
@@ -664,6 +663,77 @@ class data_field_template extends data_field_base {
         }
 
         return $field->display_browse_field($recordid, $template);
+    }
+
+    /**
+     * get_recordrating
+     *
+     * @use $CFG
+     * @use $DB
+     * @use $PAGE
+     * @use $USER
+     * @param object $data
+     * @param integer $recordid
+     * @return string
+     */
+    protected static function get_recordrating($data, $recordid) {
+        global $CFG, $DB, $OUTPUT, $PAGE, $USER;
+        require_once($CFG->dirroot.'/rating/lib.php');
+
+        if ($data->assessed==RATING_AGGREGATE_NONE) {
+            return '';
+        }
+
+        // get names fields to select (remove "u.id")
+        $select = user_picture::fields('u');
+        $select = str_replace('u.id,', '', $select);
+
+        $select = "dr.id, dr.approved, dr.timecreated, dr.timemodified, dr.userid, $select";
+        $from   = '{data_records} dr LEFT JOIN {user} u ON dr.userid = u.id';
+        $where  = 'dr.id = ? AND dr.dataid = ?';
+        $params = array($recordid, $data->id);
+        if ($records = $DB->get_records_sql("SELECT $select FROM $from WHERE $where", $params)) {
+
+            if (empty($data->coursemodule)) {
+                $data->coursemodule = get_coursemodule_from_instance('data', $data->id);
+            }
+            if (empty($data->context)) {
+                $data->context = context_module::instance($data->coursemodule->id);
+            }
+
+            $records = (object)array(
+                'context'    => $data->context,
+                'component'  => 'mod_data',
+                'ratingarea' => 'entry',
+                'items'      => $records,
+                'aggregate'  => $data->assessed,
+                'scaleid'    => $data->scale,
+                'userid'     => $USER->id,
+                'returnurl'  => $PAGE->url,
+                'assesstimestart' => $data->assesstimestart,
+                'assesstimefinish' => $data->assesstimefinish,
+            );
+
+            // convert $records to ratings
+            $rm = new rating_manager();
+            $records = $rm->get_ratings($records);
+
+            $recordrating = array();
+            foreach ($records as $record) {
+                if (empty($record->rating)) {
+                    continue;
+                }
+                if ($record->rating->user_can_view_aggregate()) {
+                    $recordrating[] = $record->rating->get_aggregate_string();
+                }
+            }
+            $recordrating = array_filter($recordrating);
+            $recordrating = implode(', ', $recordrating);
+        } else {
+            $recordrating = '';
+        }
+
+        return $recordrating;
     }
 }
 
