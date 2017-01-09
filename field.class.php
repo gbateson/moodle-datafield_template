@@ -414,8 +414,8 @@ class data_field_template extends data_field_base {
             case self::OP_LESS_THAN:     return ($content < $value);
             case self::OP_CONTAIN:       return strpos($content, $value)!==false;
             case self::OP_NOT_CONTAIN:   return strpos($content, $value)===false;
-            case self::OP_START_WITH:    return ($value == substr(0, strlen($value)));
-            case self::OP_END_WITH:      return ($value == substr(- strlen($value)));
+            case self::OP_START_WITH:    return ($value == substr($content, 0, strlen($value)));
+            case self::OP_END_WITH:      return ($value == substr($content, -strlen($value)));
             case self::OP_NUM_EQUAL:     return ($content == $value);
             case self::OP_NUM_NOT_EQUAL: return ($content != $value);
             case self::OP_NUM_MORE_THAN: return ($content > $value);
@@ -550,14 +550,22 @@ class data_field_template extends data_field_base {
      * in content from the current data $recordid
      */
     static public function replace_fieldnames($context, $cm, $data, $field, $recordid, $template, $user, $content) {
-        $search = '/\[\[([^\]]+)]\][\r\n]*/';
+        $search = '/\[\[(TITLECASE|PROPERCASE|CAMELCASE|UPPERCASE|LOWERCASE)? *([^\]]+)]\][\r\n]*/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
             for ($i=$i_max; $i>=0; $i--) {
                 $match = $matches[0][$i][0];
                 $start = $matches[0][$i][1];
-                $replace = $matches[1][$i][0]; // fieldname
+                $case    = $matches[1][$i][0];
+                $replace = $matches[2][$i][0]; // fieldname
                 $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $replace);
+                switch ($case) {
+                    case 'CAMELCASE':
+                    case 'PROPERCASE':
+                    case 'TITLECASE': $replace = self::textlib('strtotitle', $replace); break;
+                    case 'UPPERCASE': $replace = self::textlib('strtoupper', $replace); break;
+                    case 'LOWERCASE': $replace = self::textlib('strtolower', $replace); break;
+                }
                 $content = substr_replace($content, $replace, $start, strlen($match));
             }
         }
@@ -676,7 +684,7 @@ class data_field_template extends data_field_base {
      * @param integer $recordid
      * @return string
      */
-    protected static function get_recordrating($data, $recordid) {
+    static public function get_recordrating($data, $recordid) {
         global $CFG, $DB, $OUTPUT, $PAGE, $USER;
         require_once($CFG->dirroot.'/rating/lib.php');
 
@@ -734,6 +742,36 @@ class data_field_template extends data_field_base {
         }
 
         return $recordrating;
+    }
+
+    /**
+     * textlib
+     *
+     * a wrapper method to offer consistent API for textlib class
+     * in Moodle 2.0 - 2.1, $textlib is first initiated, then called
+     * in Moodle 2.2 - 2.5, we use only static methods of the "textlib" class
+     * in Moodle >= 2.6, we use only static methods of the "core_text" class
+     *
+     * @param string $method
+     * @param mixed any extra params that are required by the textlib $method
+     * @return result from the textlib $method
+     * @todo Finish documenting this function
+     */
+    static public function textlib() {
+        if (class_exists('core_text')) {
+            // Moodle >= 2.6
+            $textlib = 'core_text';
+        } else if (method_exists('textlib', 'textlib')) {
+            // Moodle 2.0 - 2.1
+            $textlib = textlib_get_instance();
+        } else {
+            // Moodle 2.3 - 2.5
+            $textlib = 'textlib';
+        }
+        $args = func_get_args();
+        $method = array_shift($args);
+        $callback = array($textlib, $method);
+        return call_user_func_array($callback, $args);
     }
 }
 
