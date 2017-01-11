@@ -148,9 +148,6 @@ class data_field_template extends data_field_base {
             $format = FORMAT_MOODLE;
         }
 
-        $options = data_field_admin::get_fileoptions($this->context);
-        $content = file_rewrite_pluginfile_urls($content, 'pluginfile.php', $this->context->id, 'mod_data', 'content', $itemid, $options);
-
         // these values may be needed by the replace_fieldnames() method
         $userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
         $user = $DB->get_record('user', array('id' => $userid));
@@ -166,10 +163,7 @@ class data_field_template extends data_field_base {
                                             $recordid, $template,
                                             $user, $content);
 
-        $options = data_field_admin::get_formatoptions();
-        $content = format_text($content, $format, $options);
-
-        return $content;
+        return data_field_admin::format_browse_field($this, $content, $format);
     }
 
     /**
