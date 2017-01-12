@@ -138,9 +138,6 @@ class data_field_template extends data_field_base {
     function display_browse_field($recordid, $template) {
         global $DB;
 
-        if (! $itemid = $this->field->id) {
-            return '';
-        }
         if (! $content = $this->field->param1) {
             return '';
         }
