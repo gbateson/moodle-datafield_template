@@ -105,6 +105,15 @@ class data_field_template extends data_field_base {
         parent::update_field();
     }
 
+    /**
+     * delete content associated with a template field
+     * when the field is deleted from the "Fields" page
+     */
+    function delete_content($recordid=0) {
+        data_field_admin::delete_content_files($this);
+        return parent::delete_content($recordid);
+    }
+
     function display_add_field($recordid = 0, $formdata = NULL) {
         return '';
     }
