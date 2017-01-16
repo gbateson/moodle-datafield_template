@@ -145,18 +145,25 @@ class data_field_template extends data_field_base {
      * @return bool|string
      */
     function display_browse_field($recordid, $template) {
-        global $DB;
+        global $DB, $USER;
 
-        if (! $content = $this->field->param1) {
+        $param = $this->contentparam;
+        if (! $content = $this->field->$param) {
             return '';
         }
-        if (! $format = $this->field->param2) {
+
+        $param = $this->formatparam;
+        if (! $format = $this->field->$param) {
             $format = FORMAT_MOODLE;
         }
 
         // these values may be needed by the replace_fieldnames() method
         $userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
-        $user = $DB->get_record('user', array('id' => $userid));
+        if ($userid==$USER->id) {
+            $user = $USER;
+        } else {
+            $user = $DB->get_record('user', array('id' => $userid));
+        }
 
         // reduce IF-ELSE-ENDIF blocks
         $content = self::replace_if_blocks($this->data, $this->field,
@@ -607,7 +614,8 @@ class data_field_template extends data_field_base {
 
         // capabilities
         if (substr($fieldname, 0, 4)=='can_') {
-            switch (substr($fieldname, 4)) {
+            $capability = substr($fieldname, 4);
+            switch ($capability) {
                 case 'addinstance':
                 case 'viewentry':
                 case 'writeentry':
@@ -626,7 +634,7 @@ class data_field_template extends data_field_base {
                 case 'exportownentry':
                 case 'exportallentries':
                 case 'exportuserinfo':
-                    return has_capability('mod/data:'.substr($fieldname, 4), $context);
+                    return has_capability('mod/data:'.$capability, $context);
             }
         }
 
