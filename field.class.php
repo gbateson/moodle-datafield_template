@@ -64,18 +64,28 @@ class data_field_template extends data_field_base {
     const OP_END_WITH      = 'END_WITH';
 
     /**
-     * the id of the data_record currently being viewed
+     * the names of the content and format param fields
      */
-    var $recordid = 0;
+    public $contentparam = 'param1';
+    public $formatparam  = 'param2';
 
     /**
      * the template currently being viewed
      * one of "addtemplate", "singletemplate", "listtemplate", "rsstemplate"
      */
-    var $template = '';
+    protected $template = '';
 
-    public $contentparam = 'param1';
-    public $formatparam  = 'param2';
+    /**
+     * the id of the "data_record" currently being viewed
+     */
+    protected $recordid = 0;
+
+    /**
+     * "data_records" ids for records which have
+     * at least one "data_content" record for this field
+     * (only necessary by export_text_value)
+     */
+    protected $recordids = null;
 
     /**
      * displays the settings for this action field on the "Fields" page
@@ -194,8 +204,20 @@ class data_field_template extends data_field_base {
      * that would be displayed by the "singletemplate"
      */
     function export_text_value($record) {
+        global $DB;
         if (empty($record) || empty($record->id)) {
-            $recordid = 0;
+            if ($this->recordids===null) {
+                $sql = 'SELECT dr.id, dr.dataid, COUNT(*) AS contentcount ';
+                $sql .= 'FROM {data_records} dr RIGHT JOIN {data_content} dc ON dr.id = dc.recordid ';
+                $sql .= 'WHERE dr.dataid = :dataid AND dc.fieldid = :fieldid ';
+                $sql .= 'GROUP BY dc.recordid ';
+                $sql .= 'HAVING contentcount > 0';
+                $params = array('dataid' => $this->data->id,
+                                'fieldid' => $this->field->id);
+                $this->recordids = $DB->get_records_sql_menu($sql, $params);
+                $this->recordids = array_keys($this->recordids);
+            }
+            $recordid = array_shift($this->recordids);
         } else {
             $recordid = $record->id;
         }
@@ -203,39 +225,6 @@ class data_field_template extends data_field_base {
         $text = preg_replace('/(<\/?(br|div|p)[^>]*>)\s+/', '$1', $text);
         $text = preg_replace('/\s+/', ' ', $text);
         return $text;
-    }
-
-    ///////////////////////////////////////////
-    // custom methods for mod.html
-    ///////////////////////////////////////////
-
-    /*
-     * get options for fieldids (param1) for display in mod.html
-     */
-    public function get_fieldids() {
-        global $DB;
-        $select = 'dataid = ? AND type != ?';
-        $params = array($this->data->id, $this->type);
-        return $DB->get_records_select_menu('data_fields', $select, $params, 'id', 'id,name');
-    }
-
-    /*
-     * get options for operators (param2) for display in mod.html
-     */
-    public function get_operators() {
-        $plugin = 'datafield_template';
-        return array(
-            self::OP_EMPTY       => get_string('isempty',       'filters'),
-            self::OP_NOT_EMPTY   => get_string('isnotempty',    $plugin),
-            self::OP_EQUAL       => get_string('isequalto',     'filters'),
-            self::OP_NOT_EQUAL   => get_string('isnotequalto',  $plugin),
-            self::OP_MORE_THAN   => get_string('ismorethan',    $plugin),
-            self::OP_LESS_THAN   => get_string('islessthan',    $plugin),
-            self::OP_CONTAIN     => get_string('contains',      'filters'),
-            self::OP_NOT_CONTAIN => get_string('doesnotcontain','filters'),
-            self::OP_START_WITH  => get_string('startswith',    'filters'),
-            self::OP_END_WITH    => get_string('endswith',      'filters')
-        );
     }
 
     ///////////////////////////////////////////
