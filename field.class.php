@@ -176,9 +176,10 @@ class data_field_template extends data_field_base {
         }
 
         // reduce IF-ELSE-ENDIF blocks
-        $content = self::replace_if_blocks($this->data, $this->field,
+        $content = self::replace_if_blocks($this->context, $this->cm,
+                                           $this->data, $this->field,
                                            $recordid, $template,
-                                           $content);
+                                           $user, $content);
 
         // replace all fieldnames
         $content = self::replace_fieldnames($this->context, $this->cm,
@@ -237,7 +238,7 @@ class data_field_template extends data_field_base {
      * @param  string $content
      * @return string
      */
-    static public function replace_if_blocks($data, $field, $recordid, $template, $content) {
+    static public function replace_if_blocks($context, $cm, $data, $field, $recordid, $template, $user, $content) {
 
         // regular expression to detect IF-ELSE-ENDIF token
         // preceding spaces/tabs and following newlines
@@ -290,7 +291,7 @@ class data_field_template extends data_field_base {
                         switch ($oldstatus) {
                             case self::STATUS_OPEN:
                             case self::STATUS_KEEP:
-                                if (self::check_condition($data, $field, $recordid, $template, $tail)) {
+                                if (self::check_condition($context, $cm, $data, $field, $recordid, $template, $tail, $user)) {
                                     $status[$level] = self::STATUS_KEEP;
                                 } else {
                                     $status[$level] = self::STATUS_MORE;
@@ -309,7 +310,7 @@ class data_field_template extends data_field_base {
                                 $status[$level] = self::STATUS_DROP;
                                 break;
                             case self::STATUS_MORE:
-                                if (self::check_condition($data, $field, $recordid, $template, $tail)) {
+                                if (self::check_condition($context, $cm, $data, $field, $recordid, $template, $tail, $user)) {
                                     $status[$level] = self::STATUS_KEEP;
                                 }
                                 break;
@@ -368,7 +369,8 @@ class data_field_template extends data_field_base {
      * @param string $tail
      * @return bool
      */
-    static public function check_condition($data, $field, $recordid, $template, $tail) {
+    static public function check_condition($context, $cm, $data, $field, $recordid, $template, $tail, $user) {
+        global $DB, $USER;
 
         // expand $tail to get $fieldname, $operator and $value
         $tail = explode(' ', $tail, 3);
@@ -389,15 +391,18 @@ class data_field_template extends data_field_base {
             return false; // prevent infinite loops
         }
 
-        if (! $field = data_get_field_from_name($fieldname, $data)) {
-            return false; // unknown $fieldname - shouldn't happen !!
-        }
-
-        if (method_exists($field, 'get_condition_value')) {
-            // special case to allow access to value of hidden "admin" fields
-            $content = $field->get_condition_value($recordid, $template);
+        if ($field = data_get_field_from_name($fieldname, $data)) {
+            if (method_exists($field, 'get_condition_value')) {
+                // special case to allow access to value of hidden "admin" fields
+                $content = $field->get_condition_value($recordid, $template);
+            } else {
+                $content = $field->display_browse_field($recordid, $template);
+            }
         } else {
-            $content = $field->display_browse_field($recordid, $template);
+            $content = self::replace_fieldname($context, $cm,
+                                               $data, $field,
+                                               $recordid, $template,
+                                               $user, $fieldname);
         }
         list($operator, $content, $value) = self::clean_condition($operator, $content, $value);
 
