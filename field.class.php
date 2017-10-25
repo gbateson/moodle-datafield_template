@@ -546,7 +546,12 @@ class data_field_template extends data_field_base {
      * in content from the current data $recordid
      */
     static public function replace_fieldnames($context, $cm, $data, $field, $recordid, $template, $user, $content) {
-        $search = '/\[\[(TITLECASE|PROPERCASE|CAMELCASE|UPPERCASE|LOWERCASE)? *([^\]]+)]\][\r\n]*/';
+        $search = 'TITLECASE|CAMELCASE|PROPERCASE|'.
+                  'UPPERCASE|LOWERCASE|'.
+                  'TRIM|LTRIM|RTRIM|'.
+                  'UL|BULLETLIST'.
+                  'OL|NUMBERLIST|';
+        $search = '/\[\[('.$search.')? *([^\]]+)]\][\r\n]*/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
             for ($i=$i_max; $i>=0; $i--) {
@@ -561,6 +566,13 @@ class data_field_template extends data_field_base {
                     case 'TITLECASE': $replace = self::textlib('strtotitle', $replace); break;
                     case 'UPPERCASE': $replace = self::textlib('strtoupper', $replace); break;
                     case 'LOWERCASE': $replace = self::textlib('strtolower', $replace); break;
+                    case 'BULLETLIST':
+                    case 'UL': $replace = self::text2list($replace, 'ul'); break;
+                    case 'NUMBERLIST':
+                    case 'OL': $replace = self::text2list($replace, 'ol'); break;
+                    case 'TRIM': $replace = trim($replace); break;
+                    case 'LTRIM': $replace = ltrim($replace); break;
+                    case 'RTRIM': $replace = rtrim($replace); break;
                 }
                 $content = substr_replace($content, $replace, $start, strlen($match));
             }
@@ -668,6 +680,24 @@ class data_field_template extends data_field_base {
         }
 
         return $field->display_browse_field($recordid, $template);
+    }
+
+    /**
+     * shortcut for making an HTML list using
+     * the display output for a radio/checkbox field
+     *
+     * @param array $items
+     * @param string $tag ul or ol
+     */
+    static public function text2list($text, $tag='ul') {
+        $list = preg_split('/(\r|\n|(<br[^>]*>))+/', $text);
+        $list = array_map('trim', $list);
+        $list = array_filter($list);
+        if (empty($list)) {
+            return ''; 
+        }
+        $list = html_writer::alist($list, null, $tag);
+        return str_replace("\n", '', $list);
     }
 
     /**
