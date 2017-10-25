@@ -26,6 +26,7 @@
 
 /** required strings */
 $string['pluginname'] = 'Template';
+$string['fieldtypelabel'] = 'Template field';
 
 /** more strings */
 $string['displaycondtions'] = 'Conditions for displaying this field';

@@ -156,7 +156,7 @@ The Template database field for Moodle >= 2.3
 
    [[IF country EQUAL Japan]]
       [[IF city EQUAL Kochi]]
-         [[IF instituion EQUAL "Kochi University of Technology"]]
+         [[IF institution EQUAL "Kochi University of Technology"]]
             You are from KUT.
          [[ENDIF]]
       [[ENDIF]]
@@ -201,9 +201,9 @@ To INSTALL this plugin
     Using GIT or ZIP
     ----------------
 
-    3. Currently database plugin strings aren't fully modularised, so the following
-       two strings need be added manually to the language pack for the Database
-       activity module, in file "/PATH/TO/MOODLE/mod/data/lang/en/data.php"
+    3. In Moodle <= 3.1, database plugin strings aren't fully modularised, so the
+       following two strings need be added manually to the language pack for the
+       Database activity module, in file "/PATH/TO/MOODLE/mod/data/lang/en/data.php"
 
           $string['template'] = 'Template';
           $string['nametemplate'] = 'Template field';

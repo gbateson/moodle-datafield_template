@@ -64,18 +64,28 @@ class data_field_template extends data_field_base {
     const OP_END_WITH      = 'END_WITH';
 
     /**
-     * the id of the data_record currently being viewed
+     * the names of the content and format param fields
      */
-    var $recordid = 0;
+    public $contentparam = 'param1';
+    public $formatparam  = 'param2';
 
     /**
      * the template currently being viewed
      * one of "addtemplate", "singletemplate", "listtemplate", "rsstemplate"
      */
-    var $template = '';
+    protected $template = '';
 
-    public $contentparam = 'param1';
-    public $formatparam  = 'param2';
+    /**
+     * the id of the "data_record" currently being viewed
+     */
+    protected $recordid = 0;
+
+    /**
+     * "data_records" ids for records which have
+     * at least one "data_content" record for this field
+     * (only necessary by export_text_value)
+     */
+    protected $recordids = null;
 
     /**
      * displays the settings for this action field on the "Fields" page
@@ -103,6 +113,15 @@ class data_field_template extends data_field_base {
     function update_field() {
         data_field_admin::get_editor_content($this);
         parent::update_field();
+    }
+
+    /**
+     * delete content associated with a template field
+     * when the field is deleted from the "Fields" page
+     */
+    function delete_content($recordid=0) {
+        data_field_admin::delete_content_files($this);
+        return parent::delete_content($recordid);
     }
 
     function display_add_field($recordid = 0, $formdata = NULL) {
@@ -136,23 +155,31 @@ class data_field_template extends data_field_base {
      * @return bool|string
      */
     function display_browse_field($recordid, $template) {
-        global $DB;
+        global $DB, $USER;
 
-        if (! $content = $this->field->param1) {
+        $param = $this->contentparam;
+        if (! $content = $this->field->$param) {
             return '';
         }
-        if (! $format = $this->field->param2) {
+
+        $param = $this->formatparam;
+        if (! $format = $this->field->$param) {
             $format = FORMAT_MOODLE;
         }
 
         // these values may be needed by the replace_fieldnames() method
         $userid = $DB->get_field('data_records', 'userid', array('id' => $recordid));
-        $user = $DB->get_record('user', array('id' => $userid));
+        if ($userid==$USER->id) {
+            $user = $USER;
+        } else {
+            $user = $DB->get_record('user', array('id' => $userid));
+        }
 
         // reduce IF-ELSE-ENDIF blocks
-        $content = self::replace_if_blocks($this->data, $this->field,
+        $content = self::replace_if_blocks($this->context, $this->cm,
+                                           $this->data, $this->field,
                                            $recordid, $template,
-                                           $content);
+                                           $user, $content);
 
         // replace all fieldnames
         $content = self::replace_fieldnames($this->context, $this->cm,
@@ -178,8 +205,20 @@ class data_field_template extends data_field_base {
      * that would be displayed by the "singletemplate"
      */
     function export_text_value($record) {
+        global $DB;
         if (empty($record) || empty($record->id)) {
-            $recordid = 0;
+            if ($this->recordids===null) {
+                $sql = 'SELECT dr.id, dr.dataid, COUNT(*) AS contentcount ';
+                $sql .= 'FROM {data_records} dr RIGHT JOIN {data_content} dc ON dr.id = dc.recordid ';
+                $sql .= 'WHERE dr.dataid = :dataid AND dc.fieldid = :fieldid ';
+                $sql .= 'GROUP BY dc.recordid ';
+                $sql .= 'HAVING contentcount > 0';
+                $params = array('dataid' => $this->data->id,
+                                'fieldid' => $this->field->id);
+                $this->recordids = $DB->get_records_sql_menu($sql, $params);
+                $this->recordids = array_keys($this->recordids);
+            }
+            $recordid = array_shift($this->recordids);
         } else {
             $recordid = $record->id;
         }
@@ -187,39 +226,6 @@ class data_field_template extends data_field_base {
         $text = preg_replace('/(<\/?(br|div|p)[^>]*>)\s+/', '$1', $text);
         $text = preg_replace('/\s+/', ' ', $text);
         return $text;
-    }
-
-    ///////////////////////////////////////////
-    // custom methods for mod.html
-    ///////////////////////////////////////////
-
-    /*
-     * get options for fieldids (param1) for display in mod.html
-     */
-    public function get_fieldids() {
-        global $DB;
-        $select = 'dataid = ? AND type != ?';
-        $params = array($this->data->id, $this->type);
-        return $DB->get_records_select_menu('data_fields', $select, $params, 'id', 'id,name');
-    }
-
-    /*
-     * get options for operators (param2) for display in mod.html
-     */
-    public function get_operators() {
-        $plugin = 'datafield_template';
-        return array(
-            self::OP_EMPTY       => get_string('isempty',       'filters'),
-            self::OP_NOT_EMPTY   => get_string('isnotempty',    $plugin),
-            self::OP_EQUAL       => get_string('isequalto',     'filters'),
-            self::OP_NOT_EQUAL   => get_string('isnotequalto',  $plugin),
-            self::OP_MORE_THAN   => get_string('ismorethan',    $plugin),
-            self::OP_LESS_THAN   => get_string('islessthan',    $plugin),
-            self::OP_CONTAIN     => get_string('contains',      'filters'),
-            self::OP_NOT_CONTAIN => get_string('doesnotcontain','filters'),
-            self::OP_START_WITH  => get_string('startswith',    'filters'),
-            self::OP_END_WITH    => get_string('endswith',      'filters')
-        );
     }
 
     ///////////////////////////////////////////
@@ -232,7 +238,7 @@ class data_field_template extends data_field_base {
      * @param  string $content
      * @return string
      */
-    static public function replace_if_blocks($data, $field, $recordid, $template, $content) {
+    static public function replace_if_blocks($context, $cm, $data, $field, $recordid, $template, $user, $content) {
 
         // regular expression to detect IF-ELSE-ENDIF token
         // preceding spaces/tabs and following newlines
@@ -285,7 +291,7 @@ class data_field_template extends data_field_base {
                         switch ($oldstatus) {
                             case self::STATUS_OPEN:
                             case self::STATUS_KEEP:
-                                if (self::check_condition($data, $field, $recordid, $template, $tail)) {
+                                if (self::check_condition($context, $cm, $data, $field, $recordid, $template, $tail, $user)) {
                                     $status[$level] = self::STATUS_KEEP;
                                 } else {
                                     $status[$level] = self::STATUS_MORE;
@@ -304,7 +310,7 @@ class data_field_template extends data_field_base {
                                 $status[$level] = self::STATUS_DROP;
                                 break;
                             case self::STATUS_MORE:
-                                if (self::check_condition($data, $field, $recordid, $template, $tail)) {
+                                if (self::check_condition($context, $cm, $data, $field, $recordid, $template, $tail, $user)) {
                                     $status[$level] = self::STATUS_KEEP;
                                 }
                                 break;
@@ -363,7 +369,8 @@ class data_field_template extends data_field_base {
      * @param string $tail
      * @return bool
      */
-    static public function check_condition($data, $field, $recordid, $template, $tail) {
+    static public function check_condition($context, $cm, $data, $field, $recordid, $template, $tail, $user) {
+        global $DB, $USER;
 
         // expand $tail to get $fieldname, $operator and $value
         $tail = explode(' ', $tail, 3);
@@ -384,15 +391,18 @@ class data_field_template extends data_field_base {
             return false; // prevent infinite loops
         }
 
-        if (! $field = data_get_field_from_name($fieldname, $data)) {
-            return false; // unknown $fieldname - shouldn't happen !!
-        }
-
-        if (method_exists($field, 'get_condition_value')) {
-            // special case to allow access to value of hidden "admin" fields
-            $content = $field->get_condition_value($recordid, $template);
+        if ($targetfield = data_get_field_from_name($fieldname, $data)) {
+            if (method_exists($field, 'get_condition_value')) {
+                // special case to allow access to value of hidden "admin" fields
+                $content = $targetfield->get_condition_value($recordid, $template);
+            } else {
+                $content = $targetfield->display_browse_field($recordid, $template);
+            }
         } else {
-            $content = $field->display_browse_field($recordid, $template);
+            $content = self::replace_fieldname($context, $cm,
+                                               $data, $field,
+                                               $recordid, $template,
+                                               $user, $fieldname);
         }
         list($operator, $content, $value) = self::clean_condition($operator, $content, $value);
 
@@ -541,21 +551,39 @@ class data_field_template extends data_field_base {
      * in content from the current data $recordid
      */
     static public function replace_fieldnames($context, $cm, $data, $field, $recordid, $template, $user, $content) {
-        $search = '/\[\[(TITLECASE|PROPERCASE|CAMELCASE|UPPERCASE|LOWERCASE)? *([^\]]+)]\][\r\n]*/';
+        $search = 'TITLECASE|CAMELCASE|PROPERCASE|'.
+                  'UPPERCASE|LOWERCASE|'.
+                  'TRIM|LTRIM|RTRIM|'.
+                  'UL|BULLETLIST|'.
+                  'OL|NUMBERLIST|'.
+                  'COMMALIST|INDENTLIST|'.
+                  'FORMATTEXT|FORMATHTML';
+        $search = '/\[\[('.$search.')? *([^\]]+)]\][\r\n]*/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
             for ($i=$i_max; $i>=0; $i--) {
                 $match = $matches[0][$i][0];
                 $start = $matches[0][$i][1];
-                $case    = $matches[1][$i][0];
-                $replace = $matches[2][$i][0]; // fieldname
-                $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $replace);
+                $case  = $matches[1][$i][0];
+                $fieldname = $matches[2][$i][0];
+                $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $fieldname);
                 switch ($case) {
-                    case 'CAMELCASE':
-                    case 'PROPERCASE':
-                    case 'TITLECASE': $replace = self::textlib('strtotitle', $replace); break;
-                    case 'UPPERCASE': $replace = self::textlib('strtoupper', $replace); break;
-                    case 'LOWERCASE': $replace = self::textlib('strtolower', $replace); break;
+                    case 'CAMELCASE' : // same as TITLECASE
+                    case 'PROPERCASE': // same as TITLECASE
+                    case 'TITLECASE' : $replace = self::textlib('strtotitle', $replace); break;
+                    case 'UPPERCASE' : $replace = self::textlib('strtoupper', $replace); break;
+                    case 'LOWERCASE' : $replace = self::textlib('strtolower', $replace); break;
+                    case 'TRIM'      : $replace = trim($replace); break;
+                    case 'LTRIM'     : $replace = ltrim($replace); break;
+                    case 'RTRIM'     : $replace = rtrim($replace); break;
+                    case 'BULLETLIST': // same as UL (unordered list)
+                    case 'UL'        : $replace = self::text2list($replace, 'ul'); break;
+                    case 'NUMBERLIST': // same as OL (ordered list)
+                    case 'OL'        : $replace = self::text2list($replace, 'ol'); break;
+                    case 'COMMALIST' : $replace = self::text2list($replace, ', '); break;
+                    case 'INDENTLIST': $replace = self::text2list($replace, "\n\t", "\n\t"); break;
+                    case 'FORMATTEXT': $replace = self::format_field($cm, $data, $fieldname, $replace); break;
+                    case 'FORMATHTML': $replace = self::format_field($cm, $data, $fieldname, $replace, 'b'); break;
                 }
                 $content = substr_replace($content, $replace, $start, strlen($match));
             }
@@ -598,7 +626,8 @@ class data_field_template extends data_field_base {
 
         // capabilities
         if (substr($fieldname, 0, 4)=='can_') {
-            switch (substr($fieldname, 4)) {
+            $capability = substr($fieldname, 4);
+            switch ($capability) {
                 case 'addinstance':
                 case 'viewentry':
                 case 'writeentry':
@@ -617,7 +646,15 @@ class data_field_template extends data_field_base {
                 case 'exportownentry':
                 case 'exportallentries':
                 case 'exportuserinfo':
-                    return has_capability('mod/data:'.substr($fieldname, 4), $context);
+                    return has_capability('mod/data:'.$capability, $context);
+            }
+        }
+
+        // course id/url
+        if (substr($fieldname, 0, 7)=='current') {
+            switch ($fieldname) {
+                case 'currentlang':
+                case 'currentlanguage': return current_language();
             }
         }
 
@@ -657,11 +694,123 @@ class data_field_template extends data_field_base {
             return ''; // oops, recursive loop
         }
 
-        if (! $field = data_get_field_from_name($fieldname, $data, $cm)) {
+        if (! $targetfield = data_get_field_from_name($fieldname, $data, $cm)) {
             return ''; // shouldn't happen !!
         }
 
-        return $field->display_browse_field($recordid, $template);
+        return $targetfield->display_browse_field($recordid, $template);
+    }
+
+    /**
+     * shortcut for making an HTML list using
+     * the display output for a radio/checkbox field
+     *
+     * @param array $items
+     * @param string $type ul or ol
+     */
+    static public function text2list($text, $type='ul', $before='', $after='') {
+        $list = preg_split('/(\r|\n|(<br[^>]*>))+/', $text);
+        $list = array_map('trim', $list);
+        $list = array_filter($list);
+        if (empty($list)) {
+            return '';
+        }
+        if ($type=='ul' || $type=='ol') {
+            $list = html_writer::alist($list, null, $type);
+            $list = str_replace("\n", '', $list);
+        } else {
+            $list = implode($type, $list);
+        }
+        return $before.$list.$after;
+    }
+
+    /**
+     * format a fieldname and value
+     */
+    static public function format_field($cm, $data, $fieldname, $value, $tag='') {
+        global $DB;
+
+        // remove trailing currency info e.g. (¥10,000 yen)
+        $search = '/\([^)]*\)$/';
+        if (preg_match($search, $value, $currency)) {
+            $currency = $currency[0];
+            $strlen = self::textlib('strlen', $currency);
+            $value = self::textlib('substr', $value, 0, -$strlen);
+        } else {
+            $currency = '';
+        }
+
+        // search $search and $replace string for multilingual strings
+        $search = self::bilingual_string();
+        if (self::is_low_ascii_language()) {
+            $replace = '$2'; // low-ascii language e.g. English
+        } else {
+            $replace = '$1'; // high-ascii/multibyte language
+        }
+
+        // set default description text
+        $text = $fieldname;
+
+        $params = array('name' => $fieldname,
+                        'dataid' => $data->id);
+        if ($field = $DB->get_record('data_fields', $params)) {
+            if ($field->description) {
+                $text = $field->description;
+                $text = preg_replace($search, $replace, $text);
+            }
+            if ($field->type=='menu' || $field->type=='radiobutton') {
+                $value = preg_replace($search, $replace, $value);
+            } if ($field->type=='checkbox') {
+                $value = preg_split('/(\r|\n|(<br[^>]*>))+/', $value);
+                $value = array_map('trim', $value);
+                $value = array_filter($value);
+                foreach (array_keys($value) as $v) {
+                    $value[$v] = preg_replace($search, $replace, $value[$v]);
+                }
+                $value = implode(html_writer::empty_tag('br'), $value);
+            }
+        }
+
+        if ($tag) {
+            $text = html_writer::tag($tag, $text);
+        }
+
+        return "$text: $value$currency";
+    }
+
+    /**
+     * Return a regexp sub-string to match a sequence of low ascii chars.
+     */
+    static public function low_ascii_substring() {
+        // 0000 - 001F Control characters e.g. tab
+        // 0020 - 007F ASCII basic e.g. abc
+        // 0080 - 009F Control characters
+        // 00A0 - 00FF ASCII extended (1) e.g. àáâãäå
+        // 0100 - 017F ASCII extended (2) e.g. āăą
+        return '\\x{0000}-\\x{007F}';
+    }
+
+    /**
+     * is_low_ascii_language
+     *
+     * @param string $lang (optional, defaults to name current language)
+     * @return boolean TRUE if $lang appears to be ascii language e.g. English; otherwise, FALSE
+     */
+    static public function is_low_ascii_language($lang='') {
+        if ($lang=='') {
+            $lang = get_string('thislanguage', 'langconfig');
+        }
+        $ascii = self::low_ascii_substring();
+        return preg_match('/^['.$ascii.']+$/u', $lang);
+    }
+
+    /**
+     * Return a regexp string to match string made up of
+     * non-ascii chars at the start and ascii chars at the end.
+     */
+    static public function bilingual_string() {
+        $ascii = self::low_ascii_substring();
+        return '/^(.*[^'.$ascii.']) *(['.$ascii.']+?)$/u';
     }
 
     /**
@@ -765,4 +914,3 @@ class data_field_template extends data_field_base {
         return call_user_func_array($callback, $args);
     }
 }
-
