@@ -642,6 +642,14 @@ class data_field_template extends data_field_base {
             }
         }
 
+        // course id/url
+        if (substr($fieldname, 0, 7)=='current') {
+            switch ($fieldname) {
+                case 'currentlang':
+                case 'currentlanguage': return current_language();
+            }
+        }
+
         // user fields
         if (isset($user->$fieldname)) {
 
