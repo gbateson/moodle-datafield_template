@@ -549,8 +549,9 @@ class data_field_template extends data_field_base {
         $search = 'TITLECASE|CAMELCASE|PROPERCASE|'.
                   'UPPERCASE|LOWERCASE|'.
                   'TRIM|LTRIM|RTRIM|'.
-                  'UL|BULLETLIST'.
-                  'OL|NUMBERLIST|';
+                  'UL|BULLETLIST|'.
+                  'OL|NUMBERLIST|'.
+                  'COMMALIST|INDENTLIST';
         $search = '/\[\[('.$search.')? *([^\]]+)]\][\r\n]*/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
@@ -566,13 +567,15 @@ class data_field_template extends data_field_base {
                     case 'TITLECASE': $replace = self::textlib('strtotitle', $replace); break;
                     case 'UPPERCASE': $replace = self::textlib('strtoupper', $replace); break;
                     case 'LOWERCASE': $replace = self::textlib('strtolower', $replace); break;
+                    case 'TRIM': $replace = trim($replace); break;
+                    case 'LTRIM': $replace = ltrim($replace); break;
+                    case 'RTRIM': $replace = rtrim($replace); break;
                     case 'BULLETLIST':
                     case 'UL': $replace = self::text2list($replace, 'ul'); break;
                     case 'NUMBERLIST':
                     case 'OL': $replace = self::text2list($replace, 'ol'); break;
-                    case 'TRIM': $replace = trim($replace); break;
-                    case 'LTRIM': $replace = ltrim($replace); break;
-                    case 'RTRIM': $replace = rtrim($replace); break;
+                    case 'COMMALIST': $replace = self::text2list($replace, ', '); break;
+                    case 'INDENTLIST': $replace = self::text2list($replace, "\n\t", "\n\t"); break;
                 }
                 $content = substr_replace($content, $replace, $start, strlen($match));
             }
@@ -687,17 +690,22 @@ class data_field_template extends data_field_base {
      * the display output for a radio/checkbox field
      *
      * @param array $items
-     * @param string $tag ul or ol
+     * @param string $type ul or ol
      */
-    static public function text2list($text, $tag='ul') {
+    static public function text2list($text, $type='ul', $before='', $after='') {
         $list = preg_split('/(\r|\n|(<br[^>]*>))+/', $text);
         $list = array_map('trim', $list);
         $list = array_filter($list);
         if (empty($list)) {
             return ''; 
         }
-        $list = html_writer::alist($list, null, $tag);
-        return str_replace("\n", '', $list);
+        if ($type=='ul' || $type=='ol') {
+            $list = html_writer::alist($list, null, $type);
+            $list = str_replace("\n", '', $list);
+        } else {
+            $list = implode($type, $list);
+        }
+        return $before.$list.$after;
     }
 
     /**
@@ -801,4 +809,3 @@ class data_field_template extends data_field_base {
         return call_user_func_array($callback, $args);
     }
 }
-
