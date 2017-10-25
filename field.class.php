@@ -724,18 +724,77 @@ class data_field_template extends data_field_base {
      */
     static public function format_field($cm, $data, $fieldname, $value, $tag='') {
         global $DB;
+
+        $search = self::bilingual_string();
+        if (self::is_low_ascii_language()) {
+            $replace = '$2'; // low-ascii language e.g. English
+        } else {
+            $replace = '$1'; // high-ascii/multibyte language
+        }
+
+        // set default description text
+        $text = $fieldname;
+
         $params = array('name' => $fieldname,
                         'dataid' => $data->id);
-        $field = $DB->get_record('data_fields', $params);
-        if ($field && $field->description) {
-            $text = $field->description;
-        } else {
-            $text = $fieldname;
+        if ($field = $DB->get_record('data_fields', $params)) {
+            if ($field->description) {
+                $text = $field->description;
+                $text = preg_replace($search, $replace, $text);
+            }
+            if ($field->type=='menu' || $field->type=='radiobutton') {
+                $value = preg_replace($search, $replace, $value);
+            } if ($field->type=='checkbox') {
+                $value = preg_split('/(\r|\n|(<br[^>]*>))+/', $value);
+                $value = array_map('trim', $value);
+                $value = array_filter($value);
+                foreach (array_keys($value) as $v) {
+                    $value[$v] = preg_replace($search, $replace, $value[$v]);
+                }
+                $value = implode(html_writer::empty_tag('br'), $value);
+            }
         }
         if ($tag) {
             $text = html_writer::tag($tag, $text);
         }
         return "$text: $value"; 
+    }
+
+    /**
+     * Return a regexp sub-string to match a sequence of low ascii chars.
+     */
+    static public function low_ascii_substring() {
+        // 0000 - 001F Control characters e.g. tab
+        // 0020 - 007F ASCII basic e.g. abc
+        // 0080 - 009F Control characters
+        // 00A0 - 00FF ASCII extended (1) e.g. àáâãäå
+        // 0100 - 017F ASCII extended (2) e.g. āăą
+        return '\\x{0000}-\\x{007F}';
+    }
+
+    /**
+     * is_low_ascii_language
+     *
+     * @param string $lang (optional, defaults to name current language)
+     * @return boolean TRUE if $lang appears to be ascii language e.g. English; otherwise, FALSE
+     */
+    static public function is_low_ascii_language($lang='') {
+        if ($lang=='') {
+            $lang = get_string('thislanguage', 'langconfig');
+        }
+        $ascii = self::low_ascii_substring();
+        return preg_match('/^['.$ascii.']+$/u', $lang);
+    }
+
+    /**
+     * Return a regexp string to match string made up of
+     * non-ascii chars at the start and ascii chars at the end.
+     */
+    static public function bilingual_string() {
+        $ascii = self::low_ascii_substring();
+        // ascii chars excluding numbers: 0-9 (=hex 30-39)
+        $chars = '\\x{0000}-\\x{0029}\\x{0040}-\\x{007F}';
+        return '/^([^'.$chars.']*[^'.$ascii.']) *(['.$ascii.']+?)$/u';
     }
 
     /**
