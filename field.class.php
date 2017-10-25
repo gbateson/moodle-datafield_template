@@ -725,6 +725,17 @@ class data_field_template extends data_field_base {
     static public function format_field($cm, $data, $fieldname, $value, $tag='') {
         global $DB;
 
+        // remove trailing currency info e.g. (¥10,000 yen)
+        $search = '/\([^)]*\)$/';
+        if (preg_match($search, $value, $currency)) {
+            $currency = $currency[0];
+            $strlen = self::textlib('strlen', $currency);
+            $value = self::textlib('substr', $value, 0, -$strlen);
+        } else {
+            $currency = '';
+        }
+
+        // search $search and $replace string for multilingual strings
         $search = self::bilingual_string();
         if (self::is_low_ascii_language()) {
             $replace = '$2'; // low-ascii language e.g. English
@@ -754,10 +765,12 @@ class data_field_template extends data_field_base {
                 $value = implode(html_writer::empty_tag('br'), $value);
             }
         }
+
         if ($tag) {
             $text = html_writer::tag($tag, $text);
         }
-        return "$text: $value"; 
+
+        return "$text: $value$currency"; 
     }
 
     /**
@@ -792,9 +805,7 @@ class data_field_template extends data_field_base {
      */
     static public function bilingual_string() {
         $ascii = self::low_ascii_substring();
-        // ascii chars excluding numbers: 0-9 (=hex 30-39)
-        $chars = '\\x{0000}-\\x{0029}\\x{0040}-\\x{007F}';
-        return '/^([^'.$chars.']*[^'.$ascii.']) *(['.$ascii.']+?)$/u';
+        return '/^(.*[^'.$ascii.']) *(['.$ascii.']+?)$/u';
     }
 
     /**

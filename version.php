@@ -26,5 +26,5 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->component    = 'datafield_template';
 $plugin->dependencies = array('datafield_admin' => ANY_VERSION);
 $plugin->requires     = 2012062500; // Moodle 2.3
-$plugin->version      = 2017102531;
-$plugin->release      = '2017-10-25 (31)';
+$plugin->version      = 2017102532;
+$plugin->release      = '2017-10-25 (32)';
