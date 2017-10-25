@@ -552,7 +552,7 @@ class data_field_template extends data_field_base {
                   'UL|BULLETLIST|'.
                   'OL|NUMBERLIST|'.
                   'COMMALIST|INDENTLIST|'.
-                  'FORMATTEXT|FORMHTML';
+                  'FORMATTEXT|FORMATHTML';
         $search = '/\[\[('.$search.')? *([^\]]+)]\][\r\n]*/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
