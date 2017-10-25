@@ -551,31 +551,34 @@ class data_field_template extends data_field_base {
                   'TRIM|LTRIM|RTRIM|'.
                   'UL|BULLETLIST|'.
                   'OL|NUMBERLIST|'.
-                  'COMMALIST|INDENTLIST';
+                  'COMMALIST|INDENTLIST|'.
+                  'FORMATTEXT|FORMHTML';
         $search = '/\[\[('.$search.')? *([^\]]+)]\][\r\n]*/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
             for ($i=$i_max; $i>=0; $i--) {
                 $match = $matches[0][$i][0];
                 $start = $matches[0][$i][1];
-                $case    = $matches[1][$i][0];
-                $replace = $matches[2][$i][0]; // fieldname
-                $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $replace);
+                $case  = $matches[1][$i][0];
+                $fname = $matches[2][$i][0];
+                $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $fname);
                 switch ($case) {
-                    case 'CAMELCASE':
-                    case 'PROPERCASE':
-                    case 'TITLECASE': $replace = self::textlib('strtotitle', $replace); break;
-                    case 'UPPERCASE': $replace = self::textlib('strtoupper', $replace); break;
-                    case 'LOWERCASE': $replace = self::textlib('strtolower', $replace); break;
-                    case 'TRIM': $replace = trim($replace); break;
-                    case 'LTRIM': $replace = ltrim($replace); break;
-                    case 'RTRIM': $replace = rtrim($replace); break;
-                    case 'BULLETLIST':
-                    case 'UL': $replace = self::text2list($replace, 'ul'); break;
-                    case 'NUMBERLIST':
-                    case 'OL': $replace = self::text2list($replace, 'ol'); break;
-                    case 'COMMALIST': $replace = self::text2list($replace, ', '); break;
+                    case 'CAMELCASE' : // same as TITLECASE
+                    case 'PROPERCASE': // same as TITLECASE
+                    case 'TITLECASE' : $replace = self::textlib('strtotitle', $replace); break;
+                    case 'UPPERCASE' : $replace = self::textlib('strtoupper', $replace); break;
+                    case 'LOWERCASE' : $replace = self::textlib('strtolower', $replace); break;
+                    case 'TRIM'      : $replace = trim($replace); break;
+                    case 'LTRIM'     : $replace = ltrim($replace); break;
+                    case 'RTRIM'     : $replace = rtrim($replace); break;
+                    case 'BULLETLIST': // same as UL
+                    case 'UL'        : $replace = self::text2list($replace, 'ul'); break;
+                    case 'NUMBERLIST': // same as OL
+                    case 'OL'        : $replace = self::text2list($replace, 'ol'); break;
+                    case 'COMMALIST' : $replace = self::text2list($replace, ', '); break;
                     case 'INDENTLIST': $replace = self::text2list($replace, "\n\t", "\n\t"); break;
+                    case 'FORMATTEXT': $replace = self::format_field($cm, $data, $fname, $replace); break;
+                    case 'FORMATHTML': $replace = self::format_field($cm, $data, $fname, $replace, 'b'); break;
                 }
                 $content = substr_replace($content, $replace, $start, strlen($match));
             }
@@ -714,6 +717,25 @@ class data_field_template extends data_field_base {
             $list = implode($type, $list);
         }
         return $before.$list.$after;
+    }
+
+    /**
+     * format a fieldname and value
+     */
+    static public function format_field($cm, $data, $fieldname, $value, $tag='') {
+        global $DB;
+        $params = array('name' => $fieldname,
+                        'dataid' => $data->id);
+        $field = $DB->get_record('data_fields', $params);
+        if ($field && $field->description) {
+            $text = $field->description;
+        } else {
+            $text = $fieldname;
+        }
+        if ($tag) {
+            $text = html_writer::tag($tag, $text);
+        }
+        return "$text: $value"; 
     }
 
     /**
