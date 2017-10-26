@@ -244,7 +244,7 @@ class data_field_template extends data_field_base {
         // preceding spaces/tabs and following newlines
         // are also grabbed, and will later be removed
         $search = '(IF|ELIF|ELSE|ENDIF)';
-        $search = '/[ \t]*\[\['.$search.'([^\]]*)\]\][\n\r]*/s';
+        $search = '/[ \t]*\[\['.$search.'([^\]]*)\]\](?:\n|\r\n|\r)?/s';
         // $1 : token head
         // $2 : token tail ($fieldname and optional $value)
 
@@ -551,6 +551,8 @@ class data_field_template extends data_field_base {
      * in content from the current data $recordid
      */
     static public function replace_fieldnames($context, $cm, $data, $field, $recordid, $template, $user, $content) {
+        // The expected format is [[FUNCTION fieldname]], where FUNCTION is optional
+        // Only the following FUNCTION tokens are allowed ...
         $search = 'TITLECASE|CAMELCASE|PROPERCASE|'.
                   'UPPERCASE|LOWERCASE|'.
                   'TRIM|LTRIM|RTRIM|'.
@@ -558,16 +560,18 @@ class data_field_template extends data_field_base {
                   'OL|NUMBERLIST|'.
                   'COMMALIST|INDENTLIST|'.
                   'FORMATTEXT|FORMATHTML';
-        $search = '/\[\[('.$search.')? *([^\]]+)]\][\r\n]*/';
+        // To allow for tidier formatting, the search string will also grab
+        // a single newline that immediately follows the [[...]] token
+        $search = '/\[\[('.$search.')? *([^\]]+)]\](?:\n|\r\n|\r)?/';
         if (preg_match_all($search, $content, $matches, PREG_OFFSET_CAPTURE)) {
             $i_max = count($matches[0]) - 1;
             for ($i=$i_max; $i>=0; $i--) {
                 $match = $matches[0][$i][0];
                 $start = $matches[0][$i][1];
-                $case  = $matches[1][$i][0];
+                $function = $matches[1][$i][0];
                 $fieldname = $matches[2][$i][0];
                 $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $fieldname);
-                switch ($case) {
+                switch ($function) {
                     case 'CAMELCASE' : // same as TITLECASE
                     case 'PROPERCASE': // same as TITLECASE
                     case 'TITLECASE' : $replace = self::textlib('strtotitle', $replace); break;
@@ -731,7 +735,7 @@ class data_field_template extends data_field_base {
         global $DB;
 
         // remove trailing currency info e.g. (¥10,000 yen)
-        $search = '/\([^)]*\)$/';
+        $search = '/ *\([^)]*\)$/';
         if (preg_match($search, $value, $currency)) {
             $currency = $currency[0];
             $strlen = self::textlib('strlen', $currency);
@@ -761,7 +765,7 @@ class data_field_template extends data_field_base {
             if ($field->type=='menu' || $field->type=='radiobutton') {
                 $value = preg_replace($search, $replace, $value);
             } if ($field->type=='checkbox') {
-                $value = preg_split('/(\r|\n|(<br[^>]*>))+/', $value);
+                $value = preg_split('/(\n|\r|(<br[^>]*>))+/', $value);
                 $value = array_map('trim', $value);
                 $value = array_filter($value);
                 foreach (array_keys($value) as $v) {
