@@ -719,6 +719,9 @@ class data_field_template extends data_field_base {
         if (empty($list)) {
             return '';
         }
+        foreach (array_keys($list) as $i) {
+            $list[$i] = self::bilingual_search_replace($list[$i]);
+        }
         if ($type=='ul' || $type=='ol') {
             $list = html_writer::alist($list, null, $type);
             $list = str_replace("\n", '', $list);
@@ -760,18 +763,15 @@ class data_field_template extends data_field_base {
         if ($field = $DB->get_record('data_fields', $params)) {
             if ($field->description) {
                 $text = $field->description;
-                $text = preg_replace($search, $replace, $text);
+                $text = self::bilingual_search_replace($text);
             }
             if ($field->type=='menu' || $field->type=='radiobutton') {
-                $value = preg_replace($search, $replace, $value);
+                $value = self::bilingual_search_replace($value);
             } if ($field->type=='checkbox') {
-                $value = preg_split('/(\n|\r|(<br[^>]*>))+/', $value);
-                $value = array_map('trim', $value);
-                $value = array_filter($value);
-                foreach (array_keys($value) as $v) {
-                    $value[$v] = preg_replace($search, $replace, $value[$v]);
+                if ($type=='') {
+                    $type = html_writer::empty_tag('br');
                 }
-                $value = implode(html_writer::empty_tag('br'), $value);
+                $value = self::text2list($value, $type);
             }
         }
 
@@ -780,6 +780,30 @@ class data_field_template extends data_field_base {
         }
 
         return "$text: $value$currency";
+    }
+
+    /**
+     * Return a regexp sub-string to match a sequence of low ascii chars.
+     */
+    static public function bilingual_search_replace($text) {
+
+        static $search = '';
+        static $replace = '';
+
+        if ($text=='') {
+            return '';
+        }
+
+        if ($search=='') {
+            $search = self::bilingual_string();
+            if (self::is_low_ascii_language()) {
+                $replace = '$2'; // low-ascii language e.g. English
+            } else {
+                $replace = '$1'; // high-ascii/multibyte language
+            }
+        }
+
+        return preg_replace($search, $replace, $text);
     }
 
     /**
