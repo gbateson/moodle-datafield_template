@@ -88,6 +88,13 @@ class data_field_template extends data_field_base {
     protected $recordids = null;
 
     /**
+     * generate HTML to display icon for this field type on the "Fields" page
+     */
+    function image() {
+        return data_field_admin::field_icon($this);
+    }
+
+    /**
      * displays the settings for this action field on the "Fields" page
      *
      * @return void, but output is echo'd to browser
@@ -555,11 +562,13 @@ class data_field_template extends data_field_base {
         // Only the following FUNCTION tokens are allowed ...
         $search = 'TITLECASE|CAMELCASE|PROPERCASE|'.
                   'UPPERCASE|LOWERCASE|'.
+                  'CHARCOUNT|WORDCOUNT|'.
                   'TRIM|LTRIM|RTRIM|'.
                   'UL|BULLETLIST|'.
                   'OL|NUMBERLIST|'.
                   'COMMALIST|INDENTLIST|'.
-                  'FORMATTEXT|FORMATHTML';
+                  'FORMATTEXT|FORMATHTML|'.
+                  'MULTILANGTITLE|BILINGUALTITLE';
         // To allow for tidier formatting, the search string will also grab
         // a single newline that immediately follows the [[...]] token
         $search = '/\[\[('.$search.')? *([^\]]+)]\](?:\n|\r\n|\r)?/';
@@ -572,22 +581,26 @@ class data_field_template extends data_field_base {
                 $fieldname = $matches[2][$i][0];
                 $replace = self::replace_fieldname($context, $cm, $data, $field, $recordid, $template, $user, $fieldname);
                 switch ($function) {
-                    case 'CAMELCASE' : // same as TITLECASE
-                    case 'PROPERCASE': // same as TITLECASE
-                    case 'TITLECASE' : $replace = self::textlib('strtotitle', $replace); break;
-                    case 'UPPERCASE' : $replace = self::textlib('strtoupper', $replace); break;
-                    case 'LOWERCASE' : $replace = self::textlib('strtolower', $replace); break;
-                    case 'TRIM'      : $replace = trim($replace); break;
-                    case 'LTRIM'     : $replace = ltrim($replace); break;
-                    case 'RTRIM'     : $replace = rtrim($replace); break;
-                    case 'BULLETLIST': // same as UL (unordered list)
-                    case 'UL'        : $replace = self::text2list($replace, 'ul'); break;
-                    case 'NUMBERLIST': // same as OL (ordered list)
-                    case 'OL'        : $replace = self::text2list($replace, 'ol'); break;
-                    case 'COMMALIST' : $replace = self::text2list($replace, ', '); break;
-                    case 'INDENTLIST': $replace = self::text2list($replace, "\n\t", "\n\t"); break;
-                    case 'FORMATTEXT': $replace = self::format_field($cm, $data, $fieldname, $replace); break;
-                    case 'FORMATHTML': $replace = self::format_field($cm, $data, $fieldname, $replace, 'b'); break;
+                    case 'CAMELCASE'  : // same as TITLECASE
+                    case 'PROPERCASE' : // same as TITLECASE
+                    case 'TITLECASE'  : $replace = self::textlib('strtotitle', $replace); break;
+                    case 'UPPERCASE'  : $replace = self::textlib('strtoupper', $replace); break;
+                    case 'LOWERCASE'  : $replace = self::textlib('strtolower', $replace); break;
+                    case 'CHARCOUNT'  : $replace = self::textlib('strlen', $replace); break;
+                    case 'WORDCOUNT'  : $replace = str_word_count($replace); break;
+                    case 'TRIM'       : $replace = trim($replace); break;
+                    case 'LTRIM'      : $replace = ltrim($replace); break;
+                    case 'RTRIM'      : $replace = rtrim($replace); break;
+                    case 'BULLETLIST' : // same as UL (unordered list)
+                    case 'UL'         : $replace = self::text2list($replace, 'ul'); break;
+                    case 'NUMBERLIST' : // same as OL (ordered list)
+                    case 'OL'         : $replace = self::text2list($replace, 'ol'); break;
+                    case 'COMMALIST'  : $replace = self::text2list($replace, ', '); break;
+                    case 'INDENTLIST' : $replace = self::text2list($replace, "\n\t", "\n\t"); break;
+                    case 'FORMATTEXT' : $replace = self::format_field($cm, $data, $fieldname, $replace); break;
+                    case 'FORMATHTML' : $replace = self::format_field($cm, $data, $fieldname, $replace, 'b'); break;
+                    case 'MULTILANGTITLE' : $replace = self::format_field_title($cm, $data, $fieldname); break;
+                    case 'BILINGUALTITLE' : $replace = self::format_field_title($cm, $data, $fieldname, true); break;
                 }
                 $content = substr_replace($content, $replace, $start, strlen($match));
             }
@@ -732,7 +745,7 @@ class data_field_template extends data_field_base {
     }
 
     /**
-     * format a fieldname and value
+     * format a field title and value
      */
     static public function format_field($cm, $data, $fieldname, $value, $tag='') {
         global $DB;
@@ -755,16 +768,13 @@ class data_field_template extends data_field_base {
             $replace = '$1'; // high-ascii/multibyte language
         }
 
-        // set default description text
-        $text = $fieldname;
+        // set default description title
+        $title = $fieldname;
 
         $params = array('name' => $fieldname,
                         'dataid' => $data->id);
         if ($field = $DB->get_record('data_fields', $params)) {
-            if ($field->description) {
-                $text = $field->description;
-                $text = self::bilingual_search_replace($text);
-            }
+            $title = self::format_field_title($cm, $data, $fieldname, true, $field);
             if ($field->type=='menu' || $field->type=='radiobutton') {
                 $value = self::bilingual_search_replace($value);
             } if ($field->type=='checkbox') {
@@ -776,10 +786,30 @@ class data_field_template extends data_field_base {
         }
 
         if ($tag) {
-            $text = html_writer::tag($tag, $text);
+            $title = html_writer::tag($tag, $title);
         }
 
-        return "$text: $value$currency";
+        return "$title: $value$currency";
+    }
+
+    /**
+     * format a field title
+     */
+    static public function format_field_title($cm, $data, $fieldname, $bilingual=false, $field=null) {
+        global $DB;
+        if ($field) {
+            $description = $field->description;
+        } else {
+            $params = array('name' => $fieldname, 'dataid' => $data->id);
+            $description = $DB->get_field('data_fields', 'description', $params);
+        }
+        if ($description===null || $description===false || $description==='') {
+            $description = $fieldname;
+        }
+        if ($bilingual) {
+            $description = self::bilingual_search_replace($description);
+        }
+        return $description;
     }
 
     /**
