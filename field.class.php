@@ -408,6 +408,75 @@ class data_field_template extends data_field_base {
             return false; // prevent infinite loops
         }
 
+        // capabilities of $user within "mod_data"
+        if (substr($fieldname, 0, 4)=='can_') {
+            switch (strtolower($fieldname)) {
+                case 'addinstance':
+                case 'viewentry':
+                case 'writeentry':
+                case 'comment':
+                case 'rate':
+                case 'viewallratings':
+                case 'viewanyrating':
+                case 'viewrating':
+                case 'approve':
+                case 'manageentries':
+                case 'managecomments':
+                case 'managetemplates':
+                case 'viewalluserpresets':
+                case 'manageuserpresets':
+                case 'exportentry':
+                case 'exportownentry':
+                case 'exportallentries':
+                case 'exportuserinfo':
+                    return has_capability('mod/data:'.substr($fieldname, 4), $context);
+            }
+        }
+
+        // informati on fields about the $user
+        switch (strtolower($fieldname)) {
+            case 'has_capability':
+                return has_capability($operator, $context);
+
+            case 'has_role':
+                $roleid = 0;
+                $rolename = self::textlib('strtolower', $operator);
+                $roles = get_roles_used_in_context($context);
+                foreach ($roles as $role) {
+                    if ($rolename==self::textlib('strtolower', $role->name) || $rolename==self::textlib('strtolower', $role->shortname)) {
+                        $roleid = $role->id;
+                    }
+                }
+
+                if ($USER->id==$user->id && is_role_switched($data->course)) {
+                    // admin/teacher viewing record as student
+                    $context = context_course::instance($data->course);
+                    return ($roleid == $USER->access['rsw'][$context->path]);
+                } else {
+                    return user_has_role_assignment($user->id, $roleid, $context->id);
+                }
+
+            case 'member_group':
+            case 'group_member':
+            case 'is_group_member':
+                $select = 'gm.id, gm.userid';
+                $from   = '{groups_members} gm, {groups} g';
+                $where  = 'gm.userid = ? AND gm.groupid = g.id AND g.name = ? AND g.courseid = ?';
+                $params = array($user->id, $operator, $data->course);
+                return $DB->record_exists_sql("SELECT $select FROM $from WHERE $where", $params);
+
+            case 'member_cohort':
+            case 'cohort_member':
+            case 'is_cohort_member':
+                $select = 'cm.id, cm.userid';
+                $from   = '{cohort_members} cm, {cohort} c';
+                $params = $context->get_parent_context_ids(true);
+                list($where, $params) = $DB->get_in_or_equal($params);
+                $where  = 'cm.userid = ? AND cm.cohortid = c.id AND c.name = ? AND c.contextid '.$where;
+                $params = array_merge(array($user->id, $operator), $params);
+                return $DB->record_exists_sql("SELECT $select FROM $from WHERE $where", $params);
+        }
+
         if ($targetfield = data_get_field_from_name($fieldname, $data)) {
             if (method_exists($field, 'get_condition_value')) {
                 // special case to allow access to value of hidden "admin" fields
@@ -416,6 +485,7 @@ class data_field_template extends data_field_base {
                 $content = $targetfield->display_browse_field($recordid, $template);
             }
         } else {
+            // not a real fieldname e.g. can_manageentries
             $content = self::replace_fieldname($context, $cm,
                                                $data, $field,
                                                $recordid, $template,
@@ -566,10 +636,19 @@ class data_field_template extends data_field_base {
     /**
      * replace all fieldnames in [[square brackets]]
      * in content from the current data $recordid
+     *
+     * @param object  $context the current context
+     * @param object  $cm the "course_module" record
+     * @param object  $data the "data" record
+     * @param object  $field the "data_fields" record
+     * @param integer $recordid
+     * @param string  $template
+     * @param object  $user
+     * @param string  $content
      */
     static public function replace_fieldnames($context, $cm, $data, $field, $recordid, $template, $user, $content) {
         // The expected format is [[FUNCTION fieldname]], where FUNCTION is optional
-        // Only the following FUNCTION tokens are allowed ...
+        // where FUNCTION is one of the following formatting functions ...
         $search = 'TITLECASE|CAMELCASE|PROPERCASE|'.
                   'UPPERCASE|LOWERCASE|'.
                   'CHARCOUNT|WORDCOUNT|'.
@@ -648,32 +727,6 @@ class data_field_template extends data_field_base {
                 case 'recordid'  : return $recordid;
                 case 'recordurl' : return new moodle_url('/mod/data/view.php', array('d' => $data->id, 'rid' => $recordid));
                 case 'recordrating' : return self::get_recordrating($data, $recordid); // check permissions ?
-            }
-        }
-
-        // capabilities
-        if (substr($fieldname, 0, 4)=='can_') {
-            $capability = substr($fieldname, 4);
-            switch ($capability) {
-                case 'addinstance':
-                case 'viewentry':
-                case 'writeentry':
-                case 'comment':
-                case 'rate':
-                case 'viewallratings':
-                case 'viewanyrating':
-                case 'viewrating':
-                case 'approve':
-                case 'manageentries':
-                case 'managecomments':
-                case 'managetemplates':
-                case 'viewalluserpresets':
-                case 'manageuserpresets':
-                case 'exportentry':
-                case 'exportownentry':
-                case 'exportallentries':
-                case 'exportuserinfo':
-                    return has_capability('mod/data:'.$capability, $context);
             }
         }
 

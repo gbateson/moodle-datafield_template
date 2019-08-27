@@ -189,7 +189,7 @@ To INSTALL this plugin
     1. download the zip file from one of the following locations
 
         * https://github.com/gbateson/moodle-datafield_template/archive/master.zip
-        * http://bateson.kanazawa-gu.ac.jp/moodle/zip/plugins_datafield_template.zip
+        * https://bateson.kochi-tech.ac.jp/zip/plugins_datafield_template.zip
 
     2. Unzip the zip file - if necessary renaming the resulting folder to "template".
        Then upload, or move, the "template" folder into the "mod/data/field" folder on
