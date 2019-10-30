@@ -838,14 +838,7 @@ class data_field_template extends data_field_base {
                         'dataid' => $data->id);
         if ($field = $DB->get_record('data_fields', $params)) {
             $title = self::format_field_title($cm, $data, $fieldname, true, $field);
-            if ($field->type=='menu' || $field->type=='radiobutton') {
-                $value = self::bilingual_search_replace($value);
-            } if ($field->type=='checkbox') {
-                if ($type=='') {
-                    $type = html_writer::empty_tag('br');
-                }
-                $value = self::text2list($value, $type);
-            }
+            $value = self::format_field_value($cm, $data, $value, true, $field);
         }
 
         if ($tag) {
@@ -877,6 +870,31 @@ class data_field_template extends data_field_base {
             }
         }
         return $description;
+    }
+
+    /**
+     * format a field value
+     */
+    static public function format_field_value($cm, $data, $value, $bilingual=false, $field=null) {
+        global $DB;
+        if ($value===null || $value===false || $value==='') {
+            return '';
+        }
+        if ($field->type=='menu' || $field->type=='radiobutton') {
+            if ($bilingual) {
+                if (strpos($value, 'class="multilang"')) {
+                    return self::reduce_multilang_spans($value);
+                } else {
+                    return self::bilingual_search_replace($value);
+                }
+            }
+        }
+        if ($field->type=='checkbox') {
+            $type = html_writer::empty_tag('br');
+            $value = self::text2list($value, $type);
+        }
+
+        return $value;
     }
 
     /**
