@@ -870,9 +870,46 @@ class data_field_template extends data_field_base {
             $description = $fieldname;
         }
         if ($bilingual) {
-            $description = self::bilingual_search_replace($description);
+            if (strpos($description, 'class="multilang"')) {
+                $description = self::reduce_multilang_spans($description);
+            } else {
+                $description = self::bilingual_search_replace($description);
+            }
         }
         return $description;
+    }
+
+    /**
+     * reduce multilang SPANs
+     */
+    static public function reduce_multilang_spans($text) {
+        // reduce multilang SPANs
+        $lang = current_language();
+        $langs = array($lang);
+        if (strlen($lang) > 2) {
+            $lang = substr($lang, 0, 2);
+            $langs[] = $lang;
+        }
+        if ($lang != 'en') {
+            $langs[] = 'en';
+        }
+        foreach ($langs as $lang) {
+            if (strpos($text, 'lang="'.$lang.'"')) {
+                $search = '/<span[^>]*lang="([^"]*)"[^>]*>(.*?)<\/span>/isu';
+                if (preg_match_all($search, $text, $matches, PREG_OFFSET_CAPTURE)) {
+                    $i_max = count($matches[0]) - 1;
+                    for ($i = $i_max; $i >= 0; $i--) {
+                        if ($lang==$matches[1][$i][0]) {
+                            $replace = $matches[2][$i][0];
+                        } else {
+                            $replace = '';
+                        }
+                        $text = substr_replace($text, $replace, $matches[0][$i][1], strlen($matches[0][$i][0]));
+                    }
+                }
+            }
+        }
+        return $text;
     }
 
     /**

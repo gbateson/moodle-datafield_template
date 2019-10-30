@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2019-10-30 (43)
+ - detect and reduce multilang SPANs in field descriptions when processing FORMATHTML content
+
 2019-08-27 (41)
  -  add new info fields: HAS_ROLE, HAS_CAPABILITY, MEMBER_GROUP, MEMBER_COHORT 
 
