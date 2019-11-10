@@ -3,166 +3,143 @@ Change log for datafield_template
 ========================================
 
 2019-10-30 (44)
+ - dasvfield_template standardize layout and spelling in CHANGES.txt
+
+2019-10-30 (44)
  - detect and reduce multilang SPANs in field values when processing FORMATHTML content
 
 2019-10-30 (43)
  - detect and reduce multilang SPANs in field descriptions when processing FORMATHTML content
 
 2019-08-27 (41)
- -  add new info fields: HAS_ROLE, HAS_CAPABILITY, MEMBER_GROUP, MEMBER_COHORT 
+ - add new info fields: HAS_ROLE, HAS_CAPABILITY, MEMBER_GROUP, MEMBER_COHORT
 
 2017-12-20 (40)
- -  fix URL of secondary zip download site 
-
-2017-12-20 (40)
- -  add new standard method, 'get_config_for_external()' 
+ - fix URL of secondary zip download site
+ - add new standard method, 'get_config_for_external()'
 
 2017-12-17 (39)
- -  nudge version number 
+ - nudge version number
 
 2017-12-17 (38)
- -  add pix/icon.gif and new method to return correct icon for this plugin 
+ - add pix/icon.gif and new method to return correct icon for this plugin
 
 2017-11-22 (37)
- -  added 4 new formatting commands: WORDCOUNT, CHARCOUNT, MULTILANGTITLE, and BILINGUALTITLE 
+ - added 4 new formatting commands: WORDCOUNT, CHARCOUNT, MULTILANGTITLE, and BILINGUALTITLE
 
 2017-11-14 (36)
- -  reduce multilang text when converting radio/checkbox content to a list 
+ - reduce multilang text when converting radio/checkbox content to a list
 
 2017-10-26 (35)
- -  grab only a single newline following [[fieldname]] tokens 
+ - grab only a single newline following [[fieldname]] tokens
 
 2017-10-25 (34)
- -  fix small bug caused by overwriting $field object with a scalar value 
+ - fix small bug caused by overwriting $field object with a scalar value
 
 2017-10-25 (33)
- -  allow IF conditions on info fields such as currentlanguages 
+ - allow IF conditions on info fields such as currentlanguages
 
 2017-10-25 (32)
- -  exclude trailing currency info when converting multilang strings 
+ - exclude trailing currency info when converting multilang strings
 
 2017-10-25 (31)
- -  convert multilang field descriptions and value to preferred language 
+ - convert multilang field descriptions and value to preferred language
 
 2017-10-25 (30)
- -  add new commands to format field description + value: FORMATTEXT and FORMATHTML 
-
-2017-10-25 (29)
- -  add new commands to format field description + value: FORMATTEXT and FORMATHTML 
+ - add new commands to format field description + value: FORMATTEXT and FORMATHTML
 
 2017-10-25 (28)
- -  add new commands to format field description + value: FORMATTEXT and FORMATHTML 
-
-2017-10-25 (28)
- -  allow new fieldnames, 'currentlang' and 'currentlanguage' to allow  multilang content in templates 
+ - allow new fieldnames, 'currentlang' and 'currentlanguage' to allow  multilang content in templates
 
 2017-10-25 (27)
- -  allow new function to make COMMALIST and INDENTLIST 
+ - allow new function to make COMMALIST and INDENTLIST
 
 2017-10-25 (26)
- -  allow new function to make lists and trim 
+ - allow new function to make lists and trim
 
 2017-01-18 (25)
- -  try harder to get recordids when exporting text values 
+ - try harder to get recordids when exporting text values
 
 2017-01-18 (24)
- -  add strings required for Moodle >= 3.2 
+ - add strings required for Moodle >= 3.2
 
 2017-01-16 (23)
- -  small improvements to code layout in template field 
+ - small improvements to code layout in template field
 
 2017-01-13 (22)
- -  datafield_action ensure files are deleted from filearea when fields of this type are deleted from Fields page 
+ - datafield_action ensure files are deleted from filearea when fields of this type are deleted from Fields page
 
 2017-01-12 (21)
- -  small remove line that sets filearea item id 
+ - small remove line that sets filearea item id
 
 2017-01-11 (20)
- -  add lib.php with function to rewrite file URLs 
+ - add lib.php with function to rewrite file URLs
 
 2017-01-09 (19)
- -  allow caseconversion to TITLE/UPPER/LOWER case in templates 
+ - allow caseconversion to TITLE/UPPER/LOWER case in templates
 
 2016-12-04 (18)
- -  add new reserved field: recordrating 
+ - add new reserved field: recordrating
 
 2016-11-02 (17)
- -  disable text_export for template fields 
-
-2016-11-02 (16)
- -  disable text_export for template fields 
+ - disable text_export for template fields
 
 2016-11-02 (14)
- -  disable text_export for template fields 
-
-2016-11-02 (14)
- -  disable text_export for action fields 
+ - disable text_export for action fields
 
 2016-04-25 (13)
- -  convert formatting methods to static, so they can be used by other plugins, e.g. datafield_action/type/confirm 
+ - convert formatting methods to static, so they can be used by other plugins, e.g. datafield_action/type/confirm
 
 2016-04-24 (12)
- -  use datafield_admin static methods to format fields in mod.html 
-
-2016-04-24 (12)
- -  use datafield_admin static methods to format fields in mod.html 
+ - use datafield_admin static methods to format fields in mod.html
 
 2016-03-22 (11)
- -  fix syntax errors in switch statements 
+ - fix syntax errors in switch statements
 
 2016-02-11 (10)
- -  small improvement ot wording in README.txt 
+ - small improvement ot wording in README.txt
 
 2016-02-11 (10)
- -  datafield_admin improve explanation in README.txt 
+ - datafield_admin improve explanation in README.txt
 
 2016-02-11 (10)
- -  allow access to certain fields from course, data, and record objects 
-
-2016-02-11 (10)
- -  allow access to certain fields from course, data, and record objects 
+ - allow access to certain fields from course, data, and record objects
 
 2016-02-09 (09)
- -  remove used method to generate SELECT form elements 
+ - remove used method to generate SELECT form elements
 
 2016-02-07 (08)
- -  improve removal of newlines around fieldnames in a template field 
+ - improve removal of newlines around fieldnames in a template field
 
 2016-02-04 (07)
- -  allow condition values to be surrounded by quotes 
+ - allow condition values to be surrounded by quotes
 
 2016-02-04 (06)
- -  remove use of textlib library as this counts chars differently from PHP's internal preg_match_all function 
-
-2016-02-04 (06)
- -  remove use of textlib library as this counts chars differently from PHP's internal preg_match_all function 
+ - remove use of textlib library as this counts chars differently from PHP's internal preg_match_all function
 
 2016-01-31 (05)
- -  improve extract of numeric values for use with NUM_ condition operators 
+ - improve extract of numeric values for use with NUM_ condition operators
 
 2016-01-31 (05)
- -  improve extract of numeric values for use with NUM_ condition operators 
-
-2016-01-31 (05)
- -  allow condition IF-ELSE-ENDIF blocks in a template 
+ - allow condition IF-ELSE-ENDIF blocks in a template
 
 2016-01-28 (04)
- -  fix comments and text strings that refer to admin datafield 
+ - fix comments and text strings that refer to admin datafield
 
 2016-01-28 (04)
- -  allow access to specified subset of fields from user profile 
+ - allow access to specified subset of fields from user profile
 
 2016-01-27 (03)
- -  expand fieldnames within template 
+ - expand fieldnames within template
 
 2016-01-27 (02)
- -  add README.txt file 
+ - add README.txt file
 
 2016-01-27 (02)
- -  add html editor to allow easier editing of template content 
+ - add html editor to allow easier editing of template content
 
 2016-01-27 (01)
- -  generate mod.html content using Moodle's html_writer API 
+ - generate mod.html content using Moodle's html_writer API
 
 2016-01-26 (00)
- -  add new data field: template 
+ - add new data field: template
