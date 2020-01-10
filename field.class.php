@@ -823,14 +823,6 @@ class data_field_template extends data_field_base {
             $currency = '';
         }
 
-        // search $search and $replace string for multilingual strings
-        $search = self::bilingual_string();
-        if (self::is_low_ascii_language()) {
-            $replace = '$2'; // low-ascii language e.g. English
-        } else {
-            $replace = '$1'; // high-ascii/multibyte language
-        }
-
         // set default description title
         $title = $fieldname;
 
