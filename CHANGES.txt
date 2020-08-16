@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2020-08-16 (47)
+ - use <DL> + bootstrap classes in mod.html templates
+
 2020-01-10 (46)
  - remove unused code to detect bilingual strings
 

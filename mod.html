@@ -23,15 +23,16 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since      Moodle 2.3
  */
- ?>
-<table width="100%" cellpadding="5" class="datafield_template"><?php
 
-    data_field_admin::format_core_field($this->field, 'name');
-    data_field_admin::format_core_field($this->field, 'description');
+data_field_admin::set_bootstrap(true);
+data_field_admin::mod_html_start($this->field);
 
-    $name = 'content';
-    $label = get_string($name);
-    $text = data_field_admin::format_editor_field($this, $label, 5, 60);
-    echo data_field_admin::format_table_row($name, $label, $text);
+data_field_admin::format_core_field($this->field, 'name');
+data_field_admin::format_core_field($this->field, 'description');
 
-?></table>
+$name = 'content';
+$label = get_string($name);
+$text = data_field_admin::format_editor_field($this, $label, 5, 60);
+echo data_field_admin::format_table_row($name, $label, $text);
+
+data_field_admin::mod_html_end();
