@@ -81,13 +81,6 @@ class data_field_template extends data_field_base {
     protected $recordid = 0;
 
     /**
-     * "data_records" ids for records which have
-     * at least one "data_content" record for this field
-     * (only necessary by export_text_value)
-     */
-    protected $recordids = null;
-
-    /**
      * generate HTML to display icon for this field type on the "Fields" page
      */
     function image() {
@@ -208,31 +201,11 @@ class data_field_template extends data_field_base {
     }
 
     /**
-     * text export return that formated field value
-     * that would be displayed by the "singletemplate"
+     * export_text_value
+     *
      */
-    function export_text_value($record) {
-        global $DB;
-        if (empty($record) || empty($record->id)) {
-            if ($this->recordids===null) {
-                $sql = 'SELECT dr.id, dr.dataid, COUNT(*) AS contentcount ';
-                $sql .= 'FROM {data_records} dr RIGHT JOIN {data_content} dc ON dr.id = dc.recordid ';
-                $sql .= 'WHERE dr.dataid = :dataid AND dc.fieldid = :fieldid ';
-                $sql .= 'GROUP BY dc.recordid ';
-                $sql .= 'HAVING contentcount > 0';
-                $params = array('dataid' => $this->data->id,
-                                'fieldid' => $this->field->id);
-                $this->recordids = $DB->get_records_sql_menu($sql, $params);
-                $this->recordids = array_keys($this->recordids);
-            }
-            $recordid = array_shift($this->recordids);
-        } else {
-            $recordid = $record->id;
-        }
-        $text = $this->display_browse_field($recordid, 'singletemplate');
-        $text = preg_replace('/(<\/?(br|div|p)[^>]*>)\s+/', '$1', $text);
-        $text = preg_replace('/\s+/', ' ', $text);
-        return $text;
+    public function export_text_value($record) {
+    	return data_field_admin::get_export_value($record->fieldid);
     }
 
     /**
