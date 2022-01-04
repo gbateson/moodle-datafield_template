@@ -699,11 +699,23 @@ class data_field_template extends data_field_base {
             switch ($fieldname) {
                 case 'recordid'  : return $recordid;
                 case 'recordurl' : return new moodle_url('/mod/data/view.php', array('d' => $data->id, 'rid' => $recordid));
-                case 'recordrating' : return self::get_recordrating($data, $recordid); // check permissions ?
+                case 'recordrating' : return self::get_recordrating($data, $recordid);
+                // Note that "recordcomments" is not needed because ##comments##
+                // can be inserted into both "listtemplate" and "singletemplate".
             }
         }
 
-        // course id/url
+        // data record id/url
+        if (substr($fieldname, 0, 6)=='rating') {
+            switch ($fieldname) {
+                case 'ratingtype'   : return $data->assessed;
+                case 'ratingmax'    : return $data->scale;
+                case 'ratingvalue'  : // Alias for "ratingvalues" so drop through ...
+                case 'ratingvalues' : return self::get_recordrating($data, $recordid);
+            }
+        }
+
+        // current lang/language
         if (substr($fieldname, 0, 7)=='current') {
             switch ($fieldname) {
                 case 'currentlang':

@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2022-01-04 (49)
+ - remove superflous field 'recordcomment', and add 'recordvalue' as an alias for 'recordvalues'
+
 2021-10-05 (48)
  - calculate template values dynamically using datafield_admin when exporting to CSV
 
