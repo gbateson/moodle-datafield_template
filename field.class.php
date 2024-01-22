@@ -985,9 +985,31 @@ class data_field_template extends data_field_base {
             return '';
         }
 
-        // get names fields to select (remove "u.id")
-        $select = user_picture::fields('u');
-        $select = str_replace('u.id,', '', $select);
+        // Append name fields required for picture
+        $tablealias = 'u';
+        $idalias = 'useruserid';
+        if (class_exists('\\core_user\\fields')) {
+            // Moodle >= 3.11
+            $fields = \core_user\fields::for_userpic();
+            $namedparams = false;
+            $fieldprefix = '';
+            $leadingcomma = false;
+            $select = $fields->get_sql('u', $namedparams, $fieldprefix, $idalias, $leadingcomma)->selects;
+        } else if (class_exists('user_picture')) {
+            // Moodle >= 2.6
+            $extrafields = null;
+            $select = user_picture::fields('u', $extrafields, $idalias);
+        } else {
+            // Moodle <= 2.5
+            $fields = array('id', 'firstname', 'lastname', 'picture', 'imagealt', 'email');
+            foreach ($fields as $i => $field) {
+                if ($field == 'id') {
+                    $field .= " AS $idalias"; 
+                }
+                $fields[$i] = "$tablealias.$field";
+            }
+            $select = implode(',', $fields);
+        }
 
         $select = "dr.id, dr.approved, dr.timecreated, dr.timemodified, dr.userid, $select";
         $from   = '{data_records} dr LEFT JOIN {user} u ON dr.userid = u.id';
