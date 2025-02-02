@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2025-02-02 (52)
+ - use mustache templates in Moodle >= 4.4
+
 2024-01-22 (50)
  - improve fetching of user fields in Moodle >= 3.11
 

@@ -215,7 +215,7 @@ class data_field_template extends data_field_base {
      * @since Moodle 3.3
      */
     public function get_config_for_external() {
-    	return data_field_admin::get_field_params($this->field);
+    	return data_field_admin::get_field_params_for_external($this->field);
     }
 
     ///////////////////////////////////////////

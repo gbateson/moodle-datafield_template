@@ -25,6 +25,14 @@
  * @since     Moodle 2.0
  */
 
+/**
+ * The font-awesome icon for this plugin is not defined by
+ * standard Moodle themes (Boost, Classic) so we add it here.
+ */
+.fa-file-code:before {
+    content: "\f1c9";
+}
+
 .path-mod-data-field form#editfield table.datafield_template tr.content td.c0 {
     padding-top: 10px;
     vertical-align: top;

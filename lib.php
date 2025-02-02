@@ -35,3 +35,11 @@ require_once($CFG->dirroot.'/mod/data/field/admin/lib.php');
 function datafield_template_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, $options=array()) {
     return datafield_admin_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, $options, 'template');
 }
+
+/**
+ * Get icon mapping for font-awesome.
+ */
+function datafield_template_get_fontawesome_icon_map() {
+    // The hex code for "file-code" is "f1c9".
+    return ['mod_data:field/template' => 'fa-solid fa-file-code'];
+}
