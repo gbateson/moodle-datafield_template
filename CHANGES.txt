@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2025-02-04 (55)
+ - utilize central function to add labels and help icons in mustache template for this field type
+
 2025-02-02 (53)
  - add files for mustache templates
 

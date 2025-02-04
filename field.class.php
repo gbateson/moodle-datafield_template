@@ -218,6 +218,34 @@ class data_field_template extends data_field_base {
     	return data_field_admin::get_field_params_for_external($this->field);
     }
 
+    /**
+     * Retrieves and prepares configuration parameters for the Mustache template.
+     *
+     * This method extends the parent method to fetch default field parameters
+     * and enhances them with additional settings required by the Mustache template.
+     *
+     * @return array The list of prepared configuration parameters for the Mustache template.
+     * @since Moodle 4.4
+     */
+    protected function get_field_params(): array {
+
+        // Fetch the name, description and params1-10.
+        $data = parent::get_field_params();
+
+        // Add labels and help icons for the mustache template.
+        $data = data_field_admin::add_labels_and_help($data, $this);
+
+        return $data;
+    }
+
+    /**
+     * Map param names to a label string and component.
+     * Used by datafield_admin::add_labels_and_help($data, $field).
+     */
+    public static function get_string_names() {
+        return ['param1' => ['content', 'moodle']];
+    }
+
     ///////////////////////////////////////////
     // static methods for parsing a template
     ///////////////////////////////////////////

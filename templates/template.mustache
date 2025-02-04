@@ -1,11 +1,11 @@
 <fieldset>
     {{> datafield_admin/basicfields }}
-    {{> mod_data/fields/requiredfield }}
 
     <!-- Template for content field -->
     <div class="form-group row fitem">
         <div class="col-md-3">
-            <label for="param1" class="mb-0">{{#str}}content, moodle{{/str}}</label>
+            <label for="param1" class="mb-0">{{param1_label}}</label>
+            {{#param1_helpicon}}{{{param1_helpicon}}}{{/param1_helpicon}}
         </div>
         <div class="col-md-9 form-inline align-items-start felement">
             <textarea id="id_param1" name="param1" class="widetext" rows="2">{{param1}}</textarea>
