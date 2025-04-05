@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2025-04-05 (56)
+ - add JS to expand/contract textarea height to match content
+
 2025-02-04 (55)
  - utilize central function to add labels and help icons in mustache template for this field type
 

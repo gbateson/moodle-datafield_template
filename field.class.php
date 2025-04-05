@@ -235,6 +235,10 @@ class data_field_template extends data_field_base {
         // Add labels and help icons for the mustache template.
         $data = data_field_admin::add_labels_and_help($data, $this);
 
+        // Javascript to fix the body id (and possibly  other stuff)
+        data_field_admin::require_js("/mod/data/field/admin/mod.html.js", true);
+        data_field_admin::require_js('/mod/data/field/report/templates/template.js', true);
+
         return $data;
     }
 
