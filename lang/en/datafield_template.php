@@ -34,3 +34,4 @@ $string['islessthan'] = 'is less than';
 $string['ismorethan'] = 'is more than';
 $string['isnotempty'] = 'is not empty';
 $string['isnotequalto'] = 'is not equal to';
+$string['privacy:metadata'] = 'A template field shows text, e.g. instructions, in the templates of a database activity. It stores no personal data.';

@@ -2,6 +2,9 @@
 Change log for datafield_template
 ========================================
 
+2026-11-16 (57)
+ - add a privacy provider, which says that this plugin stores no personal data itself
+
 2025-04-05 (56)
  - add JS to expand/contract textarea height to match content
 
